@@ -26,11 +26,11 @@ bundle agent monitor_config
 {
     vars:
         "pkgs[ubuntu][list]"    slist   => {
-                                "lsscsi"
+                                    "lsscsi"
                                 };
         "pkgs[zabbix][list]"    slist   =>  {
-                                "zabbix-server-mysql",
-                                "zabbix-frontend-php"
+                                    "zabbix-server-mysql",
+                                    "zabbix-frontend-php"
                                 };
         "pkgs[zabbix][repo]"    string  =>  "deb http://repo.zabbix.com/zabbix/2.2/ubuntu precise main";
         "pkgs[zabbix][key]"     string  =>  "http://repo.zabbix.com/zabbix-official-repo.key";

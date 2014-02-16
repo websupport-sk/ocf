@@ -31,82 +31,54 @@
 bundle agent fai_config
 {
     vars:
-        "fai[path]"             string  =>  "/etc/fai";
-        "fai[config]"           string  =>  "/srv/fai/config";
-        "fai[nfsroot]"          string  =>  "/srv/fai/nfsroot";
-        "fai[chboot]"           string  =>  "/usr/sbin/fai-chboot";
-        "fai[setuproot]"        string  =>  "/usr/sbin/fai-setup";
-        "fai[nfsrootpkgs]"      string  =>  "aptitude nfs-common fai-nfsroot module-init-tools ssh rdate lshw rpcbind rsync lftp less dump reiserfsprogs e2fsprogs usbutils host hwinfo psmisc pciutils hdparm smartmontools parted mdadm lvm2 dnsutils ntpdate dosfstools xfsprogs xfsdump procinfo numactl dialog console-tools console-common iproute udev subversion xz-utils vlan cupt firmware-bnx2 firmware-bnx2x dracut dracut-network live-boot- live-boot-initramfs-tools-";
-        "fai[kernel]"           string  =>  "vmlinuz-3.2.0-4-amd64";
-        "fai[initrd]"           string  =>  "initrd.img-3.2.0-4-amd64";
+        "fai[path]"                             string  =>  "/etc/fai";
+        "fai[config]"                           string  =>  "/srv/fai/config";
+        "fai[nfsroot]"                          string  =>  "/srv/fai/nfsroot";
+        "fai[chboot]"                           string  =>  "/usr/sbin/fai-chboot";
+        "fai[setuproot]"                        string  =>  "/usr/sbin/fai-setup";
+        "fai[nfsrootpkgs]"                      string  =>  "aptitude nfs-common fai-nfsroot module-init-tools ssh rdate lshw rpcbind rsync lftp less dump reiserfsprogs e2fsprogs usbutils host hwinfo psmisc pciutils hdparm smartmontools parted mdadm lvm2 dnsutils ntpdate dosfstools xfsprogs xfsdump procinfo numactl dialog console-tools console-common iproute udev subversion xz-utils vlan cupt firmware-bnx2 firmware-bnx2x dracut dracut-network live-boot- live-boot-initramfs-tools-";
+        "fai[kernel]"                           string  =>  "vmlinuz-3.2.0-4-amd64";
+        "fai[initrd]"                           string  =>  "initrd.img-3.2.0-4-amd64";
 
         # in this array has to be stored value for debootstrap
         "templates[OS_UBUNTU_1204_X64]"         string  =>  "precise";
         "templates[OS_UBUNTU_1204_X64_BLADE]"   string  =>  "precise";
 
-        "pkgs[debian][list]"    slist   =>  {
-                        "bind9",
-                        "isc-dhcp-server",
-                        "mysql-server",
-                        "dbconfig-common",
-                        "tftpd-hpa",
-                        "nfs-kernel-server",
-                        "nfs-common",
-                        "debootstrap",
-                        "libnss-db",
-                        "gawk",
-                        "apg",
-                        "apt-cacher-ng",
-                        "dnsutils",
-                        "heirloom-mailx",
-                        "tcpdump"
-                    };
+        "pkgs[debian][list]"                    slist   =>  {
+                                                    "bind9",
+                                                    "isc-dhcp-server",
+                                                    "mysql-server",
+                                                    "dbconfig-common",
+                                                    "tftpd-hpa",
+                                                    "nfs-kernel-server",
+                                                    "nfs-common",
+                                                    "debootstrap",
+                                                    "libnss-db",
+                                                    "gawk",
+                                                    "apg",
+                                                    "apt-cacher-ng",
+                                                    "dnsutils",
+                                                    "heirloom-mailx",
+                                                    "tcpdump"
+                                                };
 
-        "pkgs[fai][list]"       slist   =>  {
-                        "fai-server",
-                        "fai-doc",
-                        "fai-setup-storage",
-                        "fai-quickstart",
-                        };
-        "pkgs[fai][repo]"       string  =>  "deb http://fai-project.org/download wheezy koeln";
-        "pkgs[fai][key]"        string  =>  "http://fai-project.org/download/AB9B66FD.asc";
+        "pkgs[fai][list]"                       slist   =>  {
+                                                    "fai-server",
+                                                    "fai-doc",
+                                                    "fai-setup-storage",
+                                                    "fai-quickstart",
+                                                };
+        "pkgs[fai][repo]"                       string  =>  "deb http://fai-project.org/download wheezy koeln";
+        "pkgs[fai][key]"                        string  =>  "http://fai-project.org/download/AB9B66FD.asc";
 
-# FIXME: fai is ubuntu now, is this still needed ?
-#        "pkgs[backports][list]" slist   =>  {
-#                        "zabbix-proxy-mysql",
-#                        "zabbix-agent",
-#                    };
-#        "pkgs[backports][repo]" string  =>  "deb http://ftp.sk.debian.org/debian/ wheezy-backports main non-free contrib";
-#        "pkgs[backports][key]"  string  =>  "http://ftp.debian.org/debian/dists/wheezy-backports/Release.gpg";
+        "pkgs[cfengine][list]"                  slist   =>  {
+                                                    "cfengine-community",
+                                                };
+        "pkgs[cfengine][repo]"                  string  =>  "deb http://cfengine.com/pub/apt precise main";
+        "pkgs[cfengine][key]"                   string  =>  "http://cfengine.com/pub/gpg.key";
 
-        "pkgs[cfengine][list]"  slist   =>  {
-                                        "cfengine-community",
-                                        };
-        "pkgs[cfengine][repo]"  string  =>  "deb http://cfengine.com/pub/apt precise main";
-        "pkgs[cfengine][key]"   string  =>  "http://cfengine.com/pub/gpg.key";
-
-        "pkgs[websupport][repo]"        string  => "deb http://repo.websupport.sk/ubuntu precise main";
-        "pkgs[websupport][key]"         string  => "http://repo.websupport.sk/debian/pub.txt";
-        37_9_168_59::
-        "pkgs[websupport][list]"        slist   => {
-                                            "rum",
-                                            "qemu",
-                                            "libvirt-bin"
-                                            };
-        !37_9_168_59::
-        "pkgs[websupport][list]"        slist   => {
-                                            "rum",
-                                            };
-
-        "rumstrconf"            slist => {
-            "rummysql40:-s tcp:0.0.0.0:3305 -s sock:/tmp/mysql.sock -d tcp:10.20.0.180:3306 -m tcp:localhost:666 -b",
-            "rummysql41:-s tcp:0.0.0.0:3307 -s sock:/tmp/mysql41.sock -d tcp:195.210.29.30:3307 -m tcp:localhost:667 -b",
-            "rummysql50:-s tcp:0.0.0.0:3308 -s sock:/tmp/mysql50.sock -d tcp:195.210.29.26:3308 -m tcp:localhost:669 -M /run/cdb/mysql50.cdb -b",
-            "rummysql51:-s tcp:0.0.0.0:3309 -s sock:/tmp/mysql51.sock -d tcp:195.210.29.46:3306 -m tcp:localhost:670 -M /run/cdb/mysql51.cdb -b",
-            "rummysql55:-s tcp:0.0.0.0:3310 -s sock:/tmp/mariadb55.sock -d tcp:10.20.0.131:3306 -m tcp:localhost:671 -M /run/cdb/mysql55.cdb -b",
-            "rummysql50b:-s sock:/tmp/mysql50b.sock -d tcp:195.210.29.28:3308 -b",
-            "rumpgsql:-s tcp:0.0.0.0:5432 -s sock:/tmp/.s.PGSQL.5432 -d tcp:195.210.29.29:5432 -m tcp:localhost:668 -b"
-        };
+        "pkgs[websupport][repo]"                string  => "deb http://repo.websupport.sk/ubuntu precise main";
+        "pkgs[websupport][key]"                 string  => "http://repo.websupport.sk/debian/pub.txt";
 }
 
 bundle agent fai_main
@@ -136,110 +108,34 @@ bundle agent fai_main
 
     methods:
         fai::
-            "fai_config"        usebundle   =>  fai_config;
-            "fai_installrepo"   usebundle   =>  installrepo("fai");
+            "fai_config"                usebundle   =>  fai_config;
+            "fai_installrepo"           usebundle   =>  installrepo("fai");
             # we have to install fai pkgs by one, because then classes will be set per one pkg
-            "fai_installpkg"    usebundle   =>  installpkg("$(fai_config.pkgs[fai][list])");
-            "fai_installpkgs"   usebundle   =>  installpkgs("fai");
-            "timezone"          usebundle   =>  timezone;
-            "fai_dhcpdconf"     usebundle   =>  dhcpdconf;
-            "fai_hostsconf"     usebundle   =>  hostsconf;
-            "fai_namedconf"     usebundle   =>  namedconf;
-            "fai_sshdconf"      usebundle   =>  sshdconf;
-            "fai_syslogconf"    usebundle   =>  syslogconf;
-            "fai_pxehost"       usebundle   =>  fai_pxehost("$(host)");
-            "fai_tftpd"         usebundle   =>  fai_tftpd;
-            "fai_ssh_conf"      usebundle   =>  ssh_conf;
-            "fai_nfsroot"       usebundle   =>  fai_nfsroot;
+            "fai_installpkg"            usebundle   =>  installpkg("$(fai_config.pkgs[fai][list])");
+            "fai_installpkgs"           usebundle   =>  installpkgs("fai");
+            "timezone"                  usebundle   =>  timezone;
+            "fai_dhcpdconf"             usebundle   =>  dhcpdconf;
+            "fai_hostsconf"             usebundle   =>  hostsconf;
+            "fai_namedconf"             usebundle   =>  namedconf;
+            "fai_sshdconf"              usebundle   =>  sshdconf;
+            "fai_syslogconf"            usebundle   =>  syslogconf;
+            "fai_pxehost"               usebundle   =>  fai_pxehost("$(host)");
+            "fai_tftpd"                 usebundle   =>  fai_tftpd;
+            "fai_ssh_conf"              usebundle   =>  ssh_conf;
+            "fai_nfsroot"               usebundle   =>  fai_nfsroot;
         fai.fai_server_wasinstalled::
-            "fai_nfsroot_init"  usebundle   =>  fai_nfsroot_init;
+            "fai_nfsroot_init"          usebundle   =>  fai_nfsroot_init;
         fai.any::
-            "fai_tarballs"      usebundle   =>  fai_tarballs;
-            "fai_installinitrd" usebundle   =>  fai_installinitrd;
-            "fai_srvconfig"     usebundle   =>  fai_srvconfig;
-            "fai_os_passwords"  usebundle   =>  osmng_setup_really_generate_passwords;
-            "fai_mail_rbl_passwords"  usebundle   =>  fai_mail_rbl_passwords;
-            "fai_saltconf"      usebundle   =>  saltnoconf;
-            "fai_acng"          usebundle   =>  acng;
-        fai.!test_is::
-            "fai_scaledorpc"    usebundle   =>  scaledo_rpc("fai");
-            "fai_rumconf"       usebundle   =>  rumconf("fai");
+            "fai_tarballs"              usebundle   =>  fai_tarballs;
+            "fai_installinitrd"         usebundle   =>  fai_installinitrd;
+            "fai_srvconfig"             usebundle   =>  fai_srvconfig;
+            "fai_os_passwords"          usebundle   =>  osmng_setup_really_generate_passwords;
+            "fai_acng"                  usebundle   =>  acng;
         fai::
-            "fai_locale"        usebundle   =>  locale;
-            # kopirovanie dnsbl dat zo spamhausu, ale iba na originalnom fai
-        fai.37_9_168_57::
-            "fai_dnsbl_sync"    usebundle   =>  fai_dnsbl_sync;
+            "fai_locale"                usebundle   =>  locale;
         fai.37_9_168_59::
-            "fai_nfsmounts"     usebundle   =>  fai_nfsmounts;
-            "fai_postfix"       usebundle   =>  fai_postfix;
-            "fai_netinterfaces" usebundle   =>  fai_netinterfaces("fai");
-        fai.any.!test_is::
-            "fai_crontasks"     usebundle   =>  fai_crontasks;
-}
-
-bundle agent fai_nfsmounts
-{
-    vars:
-        "nt"        slist   =>  getindices("def.cindershares");
-    files:
-        "/mnt/it20/$(def.cindershares[$(nt)])/."
-            handle      => "fai_nfsmounts_create_mntpnt_for_$(def.cindershares[$(nt)])",
-            create      => "true";
-
-    storage:
-        "/mnt/it20/$(def.cindershares[netapp1])" mount    =>  nfs_p("wsnap1","/vol/$(def.cindershares[netapp1])","defaults,noatime,_netdev,nodev,noac,noauto,vers=3,ro");
-        "/mnt/it20/$(def.cindershares[netapp2])" mount    =>  nfs_p("wsnap2","/vol/$(def.cindershares[netapp2])","defaults,noatime,_netdev,nodev,noac,noauto,vers=3,ro");
-        "/mnt/backup_it20/"                      mount    =>  nfs_p("backup1.websupport.sk","/it20","defaults,noatime,_netdev,nodev,noac,noauto,vers=4,rw");
-}
-
-bundle agent fai_dnsbl_sync
-{
-    files:
-        "/var/lib/rbldns/."
-            handle      => "fai_dnsbl_sync /var/lib/rbldns/.",
-            create      => "true",
-            perms       => mog("0755", "root", "root");
-
-        "/var/lib/rbldns/spamhaus/."
-            handle      => "fai_dnsbl_sync /var/lib/rbldns/spamhaus/.",
-            create      => "true",
-            perms       => mog("0755", "root", "root");
-
-        "/var/lib/rbldns/psbl/."
-            handle      => "fai_dnsbl_sync /var/lib/rbldns/psbl/.",
-            create      => "true",
-            perms       => mog("0755", "root", "root");
-
-        "/root/bin/spamhaus-sync.sh"
-            handle          => "fai_dnsbl_sync /root/bin/spamhaus-sync.sh",
-            create          => "true",
-            perms           => mog("0755", "root", "root"),
-            edit_line       => expand_template("$(def.path[templates])/mail_rbl/tools/spamhaus-sync.sh"),
-            edit_defaults 	=> empty;
-
-    commands:
-            ## FIXME - toto sa ma vraj spustat kazdu minutu
-            "/root/bin/spamhaus-sync.sh";
-            "/usr/bin/rsync -z -p psbl-mirror.surriel.com::psbl/psbl.txt /var/lib/rbldns/psbl/psbl.txt";
-}
-
-# bundle na vygenerovanie id_rsa ktory sa zdiela medzi mail-rbl-1 a mail-rbl-2 na rsyncovanie spamhaus dat
-bundle agent fai_mail_rbl_passwords
-{
-    classes:
-        "mail_rbl_id_rsa" expression => isplain("$(def.path[mail_rbl_id_rsa])");
-
-    files:
-        #directory for passwords
-        "$(def.path[mail_rbl_passwords])."
-        handle      => "$(def.path[mail_rbl_passwords]).",
-        create      => "true",
-        perms       => mog("0700", "root", "root");
-        
-    commands:
-        "if [ ! -s $(def.path[mail_rbl_id_rsa_pub]) ]; then cd $(def.path[mail_rbl_passwords]);ssh-keygen -q -f id_rsa -N \"\" ; fi" 
-            contain => in_shell,
-            ifvarclass => "!mail_rbl_id_rsa";
+            "fai_postfix"               usebundle   =>  fai_postfix;
+            "fai_netinterfaces"         usebundle   =>  fai_netinterfaces("fai");
 }
 
 # FIXME: duplicate code from common/libraries/postfixconf.cf
@@ -247,13 +143,13 @@ bundle agent fai_mail_rbl_passwords
 bundle agent fai_postfix
 {
     vars:
-        "syncfiles" slist   =>  {
-                        "hosts",
-                        "localtime",
-                        "nsswitch.conf",
-                        "resolv.conf",
-                        "services"
-                    };
+        "syncfiles"                     slist   =>  {
+                                            "hosts",
+                                            "localtime",
+                                            "nsswitch.conf",
+                                            "resolv.conf",
+                                            "services"
+                                        };
 
     files:
         "/etc/postfix/main.cf"
@@ -330,30 +226,28 @@ bundle edit_line fai_poststr
 
 }
 
-
 bundle agent fai_netinterfaces(host)
 {
     files:
-        debian|ubuntu::
-            "/etc/network/interfaces"
-                handle              =>  "$(host)_network_interfaces",
-                comment             =>  "Generator of /etc/network/interfaces from phyhosts entry for host $(host)",
-                create              =>  "true",
-                edit_defaults       =>  empty,
-                edit_line           =>  interfacesfile("$(host)");
+        "/etc/network/interfaces"
+            handle          =>  "$(host)_network_interfaces",
+            comment         =>  "Generator of /etc/network/interfaces from phyhosts entry for host $(host)",
+            create          =>  "true",
+            edit_defaults   =>  empty,
+            edit_line       =>  interfacesfile("$(host)");
 }
 
 bundle edit_line interfacesfile(host)
 {
     vars:
-        "networks"              slist   =>  getindices("def.net");
+        "networks"  slist   =>  getindices("def.net");
 
     classes:
-        "$(phy_hosts.phy[$(host)][$(networks)_ip])_exists"              expression  =>  "any";
-        "$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])_exists"       expression  =>  "any";
-        "$(host)_$(networks)_defaultgw_exists"                          expression  =>  strcmp("$(phy_hosts.phy[$(host)][$(networks)_defaultgw])","yes");
-        "$(host)_$(networks)_bronly"                                    expression  =>  strcmp("$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])","");
-        "$(def.net[$(networks)][router])_exists"                        expression  =>  "any";
+        "$(phy_hosts.phy[$(host)][$(networks)_ip])_exists"          expression  =>  "any";
+        "$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])_exists"   expression  =>  "any";
+        "$(host)_$(networks)_defaultgw_exists"                      expression  =>  strcmp("$(phy_hosts.phy[$(host)][$(networks)_defaultgw])","yes");
+        "$(host)_$(networks)_bronly"                                expression  =>  strcmp("$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])","");
+        "$(def.net[$(networks)][router])_exists"                    expression  =>  "any";
 
     insert_lines:
         "auto lo";
@@ -627,74 +521,22 @@ bundle edit_line fai_hostclasses
 }
 bundle agent fai_installinitrd
 {
-	classes:
-		"initrdexist"	expression	=>	fileexists("$(def.path[tftpdroot])/$(fai_config.fai[initrd])");
-	#files:
-	#	"$(fai_config.fai[nfsroot])/etc/initramfs-tools/initramfs.conf"		
-	#			handle  =>      "initrd_update_install",
-	#			comment =>      "initrd update and install",
-	#			create  =>      "true",
-	#			edit_defaults   => empty,
-	#			edit_line       => fai_initramfsconf,
-	#			classes		=> if_repaired("initramfsconf_repaired");
+    classes:
+        "initrdexist"   expression  =>  fileexists("$(def.path[tftpdroot])/$(fai_config.fai[initrd])");
 
-	#	"$(fai_config.fai[nfsroot])/etc/initramfs-tools/modules"		
-	#			handle  =>      "modules_initramfs",
-	#			comment =>      "modules in initd",
-	#			create  =>      "true",
-	#			edit_defaults   => empty,
-	#			edit_line       => fai_modules,
-	#			classes		=> if_repaired("modules_repaired");
-	commands:
-		!initrdexist::
-		"$(def.path[debian][chroot]) $(fai_config.fai[nfsroot]) /usr/bin/dracut -a \"network nfs\" --add-drivers \"bnx2x crc32c nfsv3 nfsv4\" --force /boot/initrd.img-3.2.0-4-amd64 3.2.0-4-amd64";
-		"/bin/cp $(fai_config.fai[nfsroot])/boot/initrd* $(def.path[tftpdroot])/$(fai_config.fai[initrd])"
-	    	contain	=> shell;	
-		"/bin/chmod 644 $(def.path[tftpdroot])/initrd*"
-		contain => shell;
+    commands:
+        !initrdexist::
+            "$(def.path[debian][chroot]) $(fai_config.fai[nfsroot]) /usr/bin/dracut -a \"network nfs\" --add-drivers \"bnx2x crc32c nfsv3 nfsv4\" --force /boot/initrd.img-3.2.0-4-amd64 3.2.0-4-amd64";
 
+            "/bin/cp $(fai_config.fai[nfsroot])/boot/initrd* $(def.path[tftpdroot])/$(fai_config.fai[initrd])"
+                contain => shell;
+
+            "/bin/chmod 644 $(def.path[tftpdroot])/initrd*"
+                contain => shell;
 }
 
 body contain shell
 {
-useshell => "true";
+    useshell => "true";
 }
 
-
-# FIXME: should be removed because we're using dracut and not initramfs-utils
-#bundle edit_line fai_initramfsconf
-#{
-#	insert_lines:
-#		"$(def.config_header)";
-#		"MODULES=netboot";
-#		"BUSYBOX=y";
-#		"COMPCACHE_SIZE=\"\"";
-#		"COMPRESS=gzip";
-#		"BOOT=nfs";
-#		"DEVICE=";
-#		"NFSROOT=auto";
-#}
-#
-#bundle edit_line fai_modules
-#{
-#	insert_lines:
-#		"$(def.config_header)";
-#		"bnx2x";
-#		"nfs";
-#		"nfsv3";
-#		"nfsv4";
-#}
-
-bundle agent fai_crontasks
-{
-   commands:
-        37_9_168_59.Hr00.Min40_45::
-                ". /root/.openstackrc && /root/bin/volbackup.py -n all_tenants"
-                    contain =>  in_shell,
-                    action  =>  if_elapsed("600");
-        (Day10|Day24).Hr08.Min00_05::
-                "$(def.path[wget]) -O/var/lib/misc/php_browscap.ini http://tempdownloads.browserscap.com/stream.asp?Full_PHP_BrowscapINI";
-        (Hr01|Hr05|Hr09|Hr13|Hr17|Hr21).Min00_05::
-                "$(def.path[acnginit]) restart"
-                contain =>  silent;
-}
