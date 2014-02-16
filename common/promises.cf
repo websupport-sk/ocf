@@ -17,85 +17,80 @@
 #############################################################################
 
 body common control
-
 {
 
-	bundlesequence => {
+    bundlesequence  =>  {
         # Quit if one instance is already running
         "cf_agent_check",
-        #"cf_execd_reload",
 
-		# Common bundles first for best practice 
-		"def",
+        # Common bundles first for best practice 
+        "def",
 
-		# Agent bundles from here
-		"environments",
-		"generichost",
-		@(config.bundleseq),
-	};
+        # Agent bundles from here
+        "environments",
+        "generichost",
+        @(config.bundleseq),
+    };
 
-	inputs => {
+    inputs          =>  {
+        # Global common bundles
+        "common/def.cf",
 
-		# Global common bundles
-		"common/def.cf",
+        # Control body for all agents
+        "common/controls/cf_agent.cf",
+        "common/controls/cf_execd.cf",
+        "common/controls/cf_monitord.cf",
+        "common/controls/cf_report.cf",
+        "common/controls/cf_runagent.cf",
+        "common/controls/cf_serverd.cf",
 
-		# Control body for all agents
-		"common/controls/cf_agent.cf",
-		"common/controls/cf_execd.cf",
-		"common/controls/cf_monitord.cf",
-		"common/controls/cf_report.cf",
-		"common/controls/cf_runagent.cf",
-		"common/controls/cf_serverd.cf",
+        # COPBL/Custom libraries
+        "common/libraries/cfengine_stdlib.cf",
 
-		# COPBL/Custom libraries
-		"common/libraries/cfengine_stdlib.cf",
+        # Design Center
+        # MARKER FOR CF-SKETCH INPUT INSERTION
+        "common/cf-sketch-runfile.cf",
 
-		# Design Center
-		# MARKER FOR CF-SKETCH INPUT INSERTION
-		"common/cf-sketch-runfile.cf",
-
-		# User services from here
-		"common/init_msg.cf",
-		"common/libraries/generic_host.cf",
-		"common/libraries/cfengine.cf",
-		"common/libraries/timezone.cf",
-		"common/libraries/locale.cf",
-		"common/libraries/install_pkg_repo.cf",
-		"common/libraries/resolvconf.cf",
-		"common/libraries/dhcpd.cf",
-		"common/libraries/named.cf",
-		"common/libraries/sshdconf.cf",
-		"common/libraries/postfix.cf",
-		"common/libraries/syslog.cf",
-		"common/libraries/ntp.cf",
-		"common/libraries/acng.cf",
-		"common/libraries/openstack.cf",
-		#  body default_retcodes is defined here
-		"common/libraries/def_ret_codes.cf",
-		"common/libraries/bash_prompt.cf",
-		"common/libraries/body_perms.cf",
+        # User services from here
+        "common/init_msg.cf",
+        "common/libraries/generic_host.cf",
+        "common/libraries/cfengine.cf",
+        "common/libraries/timezone.cf",
+        "common/libraries/locale.cf",
+        "common/libraries/install_pkg_repo.cf",
+        "common/libraries/resolvconf.cf",
+        "common/libraries/dhcpd.cf",
+        "common/libraries/named.cf",
+        "common/libraries/sshdconf.cf",
+        "common/libraries/postfix.cf",
+        "common/libraries/syslog.cf",
+        "common/libraries/ntp.cf",
+        "common/libraries/acng.cf",
+        "common/libraries/openstack.cf",
+        #  body default_retcodes is defined here
+        "common/libraries/def_ret_codes.cf",
+        "common/libraries/bash_prompt.cf",
+        "common/libraries/body_perms.cf",
         "openstack/osmain.cf",
 
-		"$(environments.service)/promises_$(environments.service).cf",
-		@(config.inputs),
-           };
+        "$(environments.service)/promises_$(environments.service).cf",
+        @(config.inputs),
+        };
 
-	version	=>	"Community Promises.cf 3.5.3";
+    version =>  "Community Promises.cf 3.5.3";
 
 }
 
 bundle common environments
 {
-	classes:
-			"commonv1"	    or	=> { classmatch("any") };
-			"phyv1"		    or	=> { "fai", "osmng", "logs", "monitor", "backup0", "backup1","bl1_blc1", "bl2_blc1", "bl3_blc1", "bl4_blc1", "bl5_blc1", "bl6_blc1", "bl7_blc1", "bl8_blc1", "bl9_blc1", "bl10_blc1", "bl11_blc1", "bl12_blc1", "bl1_blc2", "bl2_blc2", "bl3_blc2", "bl4_blc2", "bl5_blc2", "bl6_blc2", "bl7_blc2", "bl8_blc2", "bl9_blc2", "bl10_blc2", "bl11_blc2", "bl12_blc2", "test_compute1", "test_compute2"}; 
-
-            "test_is"   or  => {classmatch("37_9_168_62"), classmatch("test_compute1"), classmatch("test_compute2")};
-			"phy"		or 	=> {classmatch("phy.*")};
-			"openstack"	or 	=> {classmatch("openstack.*")};
-	vars:
-		phyv1::
-			"service"	string	=> "phy",policy => "overridable";
+    classes:
+        "commonv1"  or  =>  { classmatch("any") };
+        "test_is"   or  =>  { classmatch("test_fai"), classmatch("test_compute1"), classmatch("test_compute2") };
+        "phy"       or  =>  { classmatch("phy.*") };
+        "openstack" or  =>  { classmatch("openstack.*")};
+    vars:
+        phyv1::
+            "service"    string    => "phy",policy => "overridable";
 }
 
 bundle agent cf_execd_reload
@@ -104,20 +99,20 @@ bundle agent cf_execd_reload
         "cf-execd"
         comment => "We have to kill cf-execd if we have changed its configuration",
         signals => { "term" },
-        action  =>  if_elapsed("30"), 
-        classes =>  if_repaired("cfexecd_killed");
+        action  => if_elapsed("30"), 
+        classes => if_repaired("cfexecd_killed");
 }
 
 bundle agent cf_agent_check
 {
-  processes:
-    "cf-agent"
-       comment => "how many cf-agent's are running (2 is too many)",
-       process_count => cf_agent_proc_count("cf-agent");
+    processes:
+        "cf-agent"
+           comment => "how many cf-agent's are running (2 is too many)",
+           process_count => cf_agent_proc_count("cf-agent");
 }
 
 body process_count cf_agent_proc_count(p)
 {
-  match_range  => "1,2";
-  out_of_range_define => { "abort" };
+    match_range  => "1,2";
+    out_of_range_define => { "abort" };
 }
