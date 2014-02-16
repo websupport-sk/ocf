@@ -1,0 +1,3 @@
+Defaults:quantum !requiretty
+
+quantum ALL=(ALL) NOPASSWD: ALL

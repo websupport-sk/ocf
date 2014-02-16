@@ -1,0 +1,18 @@
+auto lo
+iface lo inet loopback
+
+auto bond0
+iface bond0 inet manual
+        up /sbin/ifenslave bond0 eth0
+        up /sbin/ifenslave bond0 eth1
+        down /sbin/ifenslave -d bond0 eth0 eth1
+
+auto vlan112
+iface vlan112 inet dhcp
+    vlan_raw_device bond0
+
+auto vlan600
+iface vlan600 inet static
+    vlan_raw_device bond0
+    address ${openstack_interfaces_osmng.dc1openstack_ip}
+    netmask 255.255.0.0

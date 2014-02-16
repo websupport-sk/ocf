@@ -1,0 +1,6 @@
+# /etc/fstab: static file system information.
+#
+# <file sys>    <mount point>   <type>  <options>   <dump>  <pass>
+/dev/sda1   /   xfs    rw,noatime    0   1
+10.1.16.11:/vol/phyroot2/$(sys.host) /mnt/phy nfs v3,tcp,relatime,_netdev 0 0
+10.1.16.10:/vol/phyroot1/instances /mnt/instances nfs v3,tcp,relatime,_netdev 0 0

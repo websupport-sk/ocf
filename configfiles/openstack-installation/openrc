@@ -1,0 +1,7 @@
+export OS_TENANT_NAME=websupport
+export OS_USERNAME=admin
+export OS_PASSWORD=${osmng_setup_generate_passwords.os_keystone_admin_password}
+export OS_AUTH_URL="http://${osmng_config.os_bind_address}:5000/v2.0/"
+export OS_AUTH_STRATEGY=keystone
+export SERVICE_TOKEN=${osmng_setup_generate_passwords.os_keystone_token}
+export SERVICE_ENDPOINT=http://${osmng_config.os_bind_address}:35357/v2.0/

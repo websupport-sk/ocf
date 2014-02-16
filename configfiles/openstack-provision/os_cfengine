@@ -1,0 +1,555 @@
+#!/bin/bash
+
+if [ -f /root/.openstackrc ]; then
+    . /root/.openstackrc
+fi
+cachedir=/root/.os_cfengine.cache
+mkdir -p $cachedir
+
+if [ "$1" == "" ]; then
+	exit 1
+fi
+
+unset http_proxy
+unset https_proxy
+unset ftp_proxy
+unset no_proxy
+unset HTTP_PROXY
+unset HTTPS_PROXY
+unset FTP_PROXY
+unset NO_PROXY
+
+export OS_TENANT_NAME=websupport
+
+shopt -s nocasematch
+param=$1
+
+if [[ "$param" == "exec" ]]; then
+    shift
+    exec $*
+fi
+
+
+if [[ "$param" == "nova_list_all" ]]; then
+	tmp=`/usr/bin/nova list | tr -d ' '`
+    if [ `echo "$tmp"|wc -l` == "1" ]; then
+        exit 0
+    fi
+
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name") {print "=nova_name_all_"$3} }'
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name" && $4 == "SUSPENDED") {print "=nova_name_suspended_"$3} }'
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name" && $4 == "PAUSED") {print "=nova_name_paused_"$3} }'
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name" && $4 == "SHUTOFF") {print "=nova_name_shutoff_"$3} }'
+
+	exit 0
+fi
+
+if [[ "$param" == "glance_list_all" ]]; then
+    tmp=`/usr/bin/glance image-list | tr -d ' '`
+    echo "$tmp" | awk -F\| 'BEGIN{printf "@glance_list_name={"} { if($3 != "" && $3 != "Name") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$3}} END{printf "}" }'
+    echo
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name") { print "=glance_image_name_to_id_"$3"="$2 } }'
+fi
+
+if [[ "$param" == "cinder_list_all" ]]; then
+	tmp=`/usr/bin/cinder list | tr -d ' '`
+	#echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_list_name={"} { if($4 != "" && $4 != "DisplayName") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$4}} END{printf "}" }'
+    	#echo
+    for vol_type in `echo "$tmp"|awk -F\| '{print $6}'|grep -wv VolumeType|sort -u`; do
+	echo "$tmp" | awk -F\| '{if($4 != "" && $4 != "DisplayName" && $6 == "'$vol_type'") {print "=cinder_volume_name_on_volume_type_"$4"_"$6}}'
+        #echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_list_name_on_volume_type_'$vol_type'={"} { if($4 != "" && $4 != "DisplayName" && $6 == "'$vol_type'") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$4}} END{printf "}" }'
+        #echo
+        #echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_list_available_name_on_volume_type_'$vol_type'={"} { if($4 != "" && $4 != "DisplayName" && $6 == "'$vol_type'" && $3 == "available") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$4}} END{printf "}" }'
+        #echo
+    done
+	#echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_list_id={"} { if($2 != "" && $2 != "ID") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$2}} END{printf "}" }'
+	#echo
+	#echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_list_name_available={"} { if($4 != "" && $4 != "DisplayName" && $3=="available") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$4}} END{printf "}" }'
+    	#echo
+	echo "$tmp" | awk -F\| '{ if($4 != "" && $4 != "DisplayName" && $3=="available") { print "=cinder_volume_name_available_"$4} }'
+	echo "$tmp" | awk -F\| '{ if($4 != "" && $4 != "DisplayName" && $3=="available") {print "+cinder_volume_"$2"_available"}}'
+	#echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_list_name_in_use={"} { if($4 != "" && $4 != "DisplayName" && $3=="in-use") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$4}} END{printf "}" }'
+	#echo
+	echo "$tmp" | awk -F\| '{ if($4 != "" && $4 != "DisplayName") { print "=volume_name_to_id_"$4"="$2 } }'
+	echo "$tmp" | awk -F\| '{ if($4 != "" && $4 != "DisplayName") { print "=volume_name_type_to_id_"$4"_"$6"="$2 } }'
+	#echo "$tmp" | awk -F\| '{ if($4 != "" && $4 != "DisplayName") { print "volumeid_to_type_"$2"="$6 } }'
+    awkarr=`echo "$tmp" | awk -F\| '{ if($4 != "" && $4 != "DisplayName") { printf "volumeid_to_type[\""$2"\"]=\""$6"\";" } }'`
+	tmp=`/usr/bin/cinder snapshot-list | tr -d ' '`
+#    echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_snapshot_list_name={"} { if($5 != "" && $5 != "DisplayName") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$5}} END{printf "}" }'
+#	echo
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "VolumeID") { print "=snapshot_volid_to_id_"$3"="$2 } }'
+	echo "$tmp" | awk -F\| '{ if($5 != "" && $5 != "DisplayName") { print "=snapshot_name_to_id_"$5"="$2 } }'
+    echo "$tmp" | awk -F\| 'BEGIN{'$awkarr'} { if($5 != "" && $5 != "DisplayName") { print "=snapshot_voltype_name_to_id_"volumeid_to_type[$3]"_"$5"="$2} }'
+
+	tmp=`/usr/bin/cinder type-list | tr -d ' '`
+#	echo "$tmp" | awk -F\| 'BEGIN{printf "@cinder_type_list_name={"} { if($3 != "" && $3 != "name" && $3 != "Name") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$3}} END{printf "}" }'
+#    echo
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "name" && $3 != "Name") { print "=cinder_type_name_"$3 } }'
+	tmp=`/usr/bin/cinder extra-specs-list | tr -d ' '`
+	echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "name" && $3 != "Name" && $4 == "{}") {print "+cinder_type_name_spec_empty_"$3}}'
+
+	exit 0
+fi
+
+if [[ "$param" == "quantum_list_all" ]]; then
+	tmp=`/usr/bin/quantum net-list | tr -d ' '`
+	echo "$tmp" | awk -F\| 'BEGIN{printf "@quantum_net_list_name={"} { if($3 != "" && $3 != "name") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$3}} END{printf "}" }'
+	echo
+	echo "$tmp" | awk -F\| 'BEGIN{printf "@quantum_net_list_id={"} { if($2 != "" && $2 != "id") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$2}} END{printf "}" }'
+	echo
+	echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "name") { print "=quantum_net_name_to_id_"$3"="$2 } }'
+    quantumnettmp="$tmp"
+	tmp=`/usr/bin/quantum subnet-list | tr -d ' '`
+	echo "$tmp" | awk -F\| 'BEGIN{printf "@quantum_subnet_list_name={"} { if($3 != "" && $3 != "name") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$3}} END{printf "}" }'
+	echo
+	echo "$tmp" | awk -F\| 'BEGIN{printf "@quantum_subnet_list_id={"} { if($2 != "" && $2 != "id") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$2}} END{printf "}" }'
+	echo
+	echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "name") { print "=quantum_subnet_name_to_id_"$3"="$2 } }'
+	tmp=`/usr/bin/quantum router-list | tr -d ' '`
+    echo "$tmp" | awk -F\| 'BEGIN{printf "@quantum_router_list_name={"} { if($2 != "" && $2 != "id") {if (comma==1) {printf ","}; comma=1; printf "\"%s\"",$3}} END{printf "}" }'
+	echo
+	echo "$tmp" | awk -F\| '{ if($2 != "" && $2 != "id") { print "=quantum_router_name_to_id_"$3"="$2 } }'
+
+    ## FIXME: replace CHANGEME string in next line with vlan name which has external ip address space
+    extnet_id_for_router=`echo "$quantumnettmp" | grep CHANGEME | awk -F\| '{ if($2 != "" && $2 != "id") {print $2} }'`
+    if [ "$extnet_id_for_router" != "" ]; then
+        echo =quantum_l3_agent_net_id=$extnet_id_for_router
+    fi
+	#echo "$tmp" | awk -F\| '{ if($2 != "" && $2 != "id") { print "=quantum_l3_agent_net_id="$2 } }'
+
+	exit 0
+fi
+
+if [[ "$param" == "get_data_volume_parameter" ]]; then
+    vpsname=$2
+    size=$3
+
+    if [[ "$size" =~ ^[0-9]+$ ]]; then
+        cached=`find $cachedir/cinder-list -mmin -1|wc -l`
+        if [ "$cached" == "1" ]; then
+            cinderlist=`cat $cachedir/cinder-list`
+        else
+            cinderlist=`cinder list`
+            echo "$cinderlist" >$cachedir/cinder-list
+        fi
+
+        data_volume_id=`echo "$cinderlist" |grep data-$vpsname|grep available|awk -F" " '{print $2}'`
+        if [[ "$data_volume_id" != "" ]]; then
+            echo =data_volume_parameter_$vpsname=--block-device-mapping vdb=$data_volume_id:::0
+            exit
+        fi
+    fi
+    echo =data_volume_parameter_$vpsname='""'
+fi
+
+
+## FIXME - pri schedule=rr nemoze byt viac instancii ako compute nod
+if [[ "$param" == "get_boot_node_for_instance" ]]; then
+    vpsname=$2
+    schedule=$3
+
+    if [ "$schedule" == "rr" ]; then
+        if [ "$vpsname" != "" ]; then
+            num=`echo $vpsname|grep -o '[0-9]\+$'`
+
+            ## KILL MEEE - zosortujeme blX-blcY podla kluca Y a potom X
+            cached=`find $cachedir/nodelist -mmin -1|wc -l`
+            if [ "$cached" == "1" ]; then
+                nodelist=`cat $cachedir/nodelist`
+            else
+                nodelist=`nova service-list|grep -w nova-compute|grep -w enabled|grep -w up|awk -F" " '{print $4}'|sed 's/[a-z]\+//g'|sed 's/-/ /'|sort -k2 -k1 -h|sed 's/\(.*\) \(.*\)/bl\1-blc\2/'`
+                echo "$nodelist" >$cachedir/nodelist
+            fi
+
+            IFS=$'\n' lines=($nodelist)
+            
+            echo =availability_zone_$vpsname=--availability-zone nova:${lines[$num-1]}
+            exit
+        fi
+    fi
+
+    echo =availability_zone_$vpsname='""'
+fi
+
+if [[ "$param" == "get_least_used_voltype" ]]; then
+    vpsname=$2
+
+    ## cfengine nam zavola get_least_used_voltype pre kazdy typ vpska naraz pred vytvorenim volumov
+    ## preto aby neboli vsetky vps na vpsroot1 alebo 2, vyberieme vpsroot podla nazvu vpska
+    ## ak je delitelne 2 tak dame na vpsroot2, inak na 1
+    if [ "$vpsname" != "" ]; then
+        num=`echo $vpsname|grep -o '[0-9]\+$'`
+        mod=$(($num %2))
+
+        if [ "$mod" != "0" ]; then
+            echo +volume_on_type_vpsroot1_$2
+        else 
+            echo +volume_on_type_vpsroot2_$2
+        fi
+    else
+
+    	tmp=`/usr/bin/cinder list | tr -d ' '`
+        vpsroot1=`echo "$tmp"|awk -F\| '{print $6}'|grep -wv VolumeType|grep vpsroot1|wc -l`
+        vpsroot2=`echo "$tmp"|awk -F\| '{print $6}'|grep -wv VolumeType|grep vpsroot2|wc -l`
+
+        if [ $vpsroot2 -ge $vpsroot1 ]; then
+            echo +volume_on_type_vpsroot1_$2
+        else 
+            echo +volume_on_type_vpsroot2_$2
+        fi
+    fi
+fi
+
+if [[ "$param" == "get_least_used_data_voltype" ]]; then
+    vpsname=$2
+    voltype=$3
+
+    cached=`find $cachedir/cinder-type-list -mmin -1|wc -l`
+    if [ "$cached" == "1" ]; then
+        cindertypelist=`cat $cachedir/cinder-type-list`
+    else
+        cindertypelist=`cinder type-list`
+        echo "$cindertypelist" >$cachedir/cinder-type-list
+    fi
+
+    voltypes=`echo "$cindertypelist"|awk -F" " '{print $4}'|tr -d ' '|grep -v Name|grep -v '^$'|grep ^$voltype|sort`
+    IFS=$'\n' voltypes_list=($voltypes)
+
+    ## cfengine nam zavola get_least_used_voltype pre kazdy typ vpska naraz pred vytvorenim volumov
+    ## preto aby neboli vsetky vps na vpsroot1 alebo 2, vyberieme vpsroot podla nazvu vpska
+    ## ak je delitelne 2 tak dame na vpsroot2, inak na 1
+    if [ "$vpsname" != "" ]; then
+        num=`echo $vpsname|grep -o '[0-9]\+$'`
+        mod=$(($num %2))
+
+        if [ "$mod" != "0" ]; then
+            echo +data_volume_on_type_${voltypes_list[0]}_$vpsname
+            echo =data_volume_on_type_name_$vpsname=${voltypes_list[0]}
+        else 
+            echo +data_volume_on_type_${voltypes_list[1]}_$vpsname
+            echo =data_volume_on_type_name_$vpsname=${voltypes_list[1]}
+        fi
+    else
+    	tmp=`/usr/bin/cinder list | tr -d ' '`
+        voltype1=`echo "$tmp"|awk -F\| '{print $6}'|grep -wv VolumeType|grep ${voltypes_list[0]}|wc -l`
+        voltype2=`echo "$tmp"|awk -F\| '{print $6}'|grep -wv VolumeType|grep ${voltypes_list[1]}|wc -l`
+
+        if [ $vpsroot2 -ge $vpsroot1 ]; then
+            echo +data_volume_on_type_${voltypes_list[0]}_$vpsname
+            echo =data_volume_on_type_name_$vpsname=${voltypes_list[0]}
+        else 
+            echo +volume_on_type_${voltypes_list[1]}_$vpsname
+            echo =volume_on_type_name_$vpsname=${voltypes_list[1]}
+        fi
+    fi
+fi
+
+if [[ "$param" == "flavor_list_all" ]]; then
+	tmp=`/usr/bin/nova flavor-list | tr -d ' '`
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name") { print "=flavor_"$3"="$2; print "=flavor_"$3"_mem="$4 ; print "=flavor_"$3"_cpu="$8; }}'
+fi
+
+if [[ "$param" == "flavor_create_or_update" ]]; then
+    flavor=$2
+    cpu=$3
+    mem=$4
+
+    # delete if exist
+	tmp=`/usr/bin/nova flavor-list | tr -d ' '`
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Name") { print $3; }}'|grep -qw $flavor && nova flavor-delete $flavor
+
+    nova flavor-create --ephemeral 0 --swap 0 $flavor auto $mem 0 $cpu
+fi
+
+if [[ "$param" == "keystone_tenant_list_all" ]]; then
+	tmp=`/usr/bin/keystone tenant-list | tr -d ' '`
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "name") { print "=keystone_tenant_"$3"="$2 } }'
+fi
+
+if [[ "$param" == "nova_cinder_quantum_quota_list_all" ]]; then
+	tmp=`/usr/bin/nova quota-show --tenant $2 | tr -d ' '`
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Value") { print "=nova_quota_'$2'_"$2"="$3 } }'
+
+	tmp=`/usr/bin/cinder quota-show $2 | tr -d ' '`
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Value") { print "=cinder_quota_'$2'_"$2"="$3 } }'
+
+	tmp=`/usr/bin/quantum quota-show $2 | tr -d ' '`
+    echo "$tmp" | awk -F\| '{ if($3 != "" && $3 != "Value") { print "=quantum_quota_'$2'_"$2"="$3 } }'
+
+
+    exit 0
+fi
+
+
+if [[ "$param" == "service_status" ]]; then
+	tmp=`/usr/bin/cinder service-list | tr -d ' '`
+    if echo "$tmp" | grep -q 'cinder-scheduler.*enabled.*up'; then
+        echo +cinder_scheduler_ok
+    fi
+    if echo "$tmp" | grep -q 'cinder-volume.*enabled.*up'; then
+        echo +cinder_volume_ok
+    fi
+
+	tmp=`/usr/bin/nova-manage service list | tr -d ' '`
+    if echo "$tmp"|grep -q 'nova-conductor.*enabled.*:-)';then
+        echo +nova_conductor_ok
+    fi
+    if echo "$tmp"|grep -q 'nova-scheduler.*enabled.*:-)';then
+        echo +nova_scheduler_ok
+    fi
+    if echo "$tmp"|grep -q 'nova-consoleauth.*enabled.*:-)';then
+        echo +nova_consoleauth_ok
+    fi
+    if echo "$tmp"|grep -q 'nova-compute.*enabled.*:-)';then
+        echo +nova_compute_ok
+    fi
+
+	tmp=`/usr/bin/quantum agent-list | tr -d ' '`
+    if echo "$tmp"|grep -q 'L3agent.*:-)';then
+        echo +quantum_l3_agent_ok
+    fi
+    if echo "$tmp"|grep -q 'DHCPagent.*:-)';then
+        echo +quantum_dhcp_agent_ok
+    fi
+    if echo "$tmp"|grep -q 'OpenvSwitchagent.*:-)';then
+        echo +quantum_openvswitch_agent_ok
+    fi
+
+    if echo "$tmp"|grep -q 'L3agent.*${sys.host}.*:-)';then
+        echo +quantum_local_l3_agent_ok
+    fi 
+    if echo "$tmp"|grep -q 'DHCPagent.*${sys.host}.*:-)';then
+        echo +quantum_local_dhcp_agent_ok
+    fi 
+    if echo "$tmp"|grep -q 'OpenvSwitchagent.*${sys.host}.*:-)';then
+        echo +quantum_local_openvswitch_agent_ok
+    fi 
+    
+    exit 0
+fi
+
+
+
+if [[ "$param" == "ip_range_setvar" ]]; then
+	if [ "$2" == "" ]; then
+		exit 1
+	fi
+	if [ "$3" == "" ]; then
+		exit 1
+	fi
+	if [ "$4" == "" ]; then
+		exit 1
+	fi
+	if [ "$5" == "" ]; then
+		exit 1
+	fi
+	if [ "$6" == "" ]; then
+		exit 1
+	fi
+
+
+	prefix=$2
+	vps=$3
+	netname=$4
+	range=$5
+	ip=$6
+
+	prips $range | grep -q '^'$ip'$'
+
+	ret=$?
+	if [ "$ret" == "0" ]; then
+		echo "=${prefix}_net_name_$vps=$netname"
+		ipcalc --nocolor $range|grep '^Netmask'|awk -F" " '{print "='${prefix}'_net_netmask_'$vps'="$2}'
+		ipcalc --nocolor $range|grep '^HostMin'|awk -F" " '{print "='${prefix}'_net_gw_'$vps'="$2}'
+	fi
+fi
+
+if [[ "$param" == "ip_get_default_route" ]]; then
+#"/root/bin/os_cfengine ip_get_default_route $(sys.hostname) lb_proxy $(def.vmdefault[lb_proxy][count]) $(def.vmdefault[lb_proxy][localnet_startip])"
+	if [ "$2" == "" ]; then
+		exit 1
+	fi
+	if [ "$3" == "" ]; then
+		exit 1
+	fi
+	if [ "$4" == "" ]; then
+		exit 1
+	fi
+
+    hostname=$2
+    vmtype=$3
+    count=$4
+    local_startip=$5
+
+    id=`echo $hostname|sed 's/.*-\(.*\)/\1/'`
+
+    declare -A nets
+    nets["localnet0"]="10.10.0.0/16"
+    nets["vlan110"]="10.1.16.0/21"
+
+    for i in "${!nets[@]}"
+    do
+        range=${nets[$i]}
+        netname=$i
+
+        if [ ! -f "$cachedir/prips_$netname" ];then
+            prips $range >$cachedir/prips_$netname
+        fi
+    done
+
+    IFS='./' read -ra ipnums <<<"$local_startip"
+
+    if [ $count -lt $id ]; then
+        loops=$(($(($id/$count))+1))
+    else
+        loops=1
+    fi
+
+    for loop in $(seq 1 $loops); do
+        for x in $(seq 0 $((count-1))); do 
+            ip="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))"
+
+            if [ "$x" == "$((id-1))" ]; then
+                echo "=default_gw=$ip"
+                exit
+            fi
+        done
+	id=$((id-count))
+    done
+fi
+
+if [[ "$param" == "ip_setvar" ]]; then
+	if [ "$2" == "" ]; then
+		exit 1
+	fi
+	if [ "$3" == "" ]; then
+		exit 1
+	fi
+	if [ "$4" == "" ]; then
+		exit 1
+	fi
+
+	vmtype=`echo $2|sed 's/_/-/g'`
+	count=$3
+	local_startip=$4
+	ext_startip=$5
+	stor_startip=$6
+
+    declare -A nets
+    nets["localnet0"]="10.10.0.0/16"
+    nets["vlan110"]="10.1.16.0/21"
+
+    for i in "${!nets[@]}"
+    do
+        range=${nets[$i]}
+        netname=$i
+
+        if [ ! -f "$cachedir/prips_$netname" ];then
+            prips $range >$cachedir/prips_$netname
+        fi
+    done
+
+
+    IFS='./' read -ra ipnums <<<"$local_startip"
+    for x in $(seq 0 $((count-1))); do 
+        echo "=local_ip_$vmtype"-$((x+1))"="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))
+        ip="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))"
+        vps=$vmtype-$((x+1))
+        for i in "${!nets[@]}"
+        do
+            range=${nets[$i]}
+            netname=$i
+
+        	#prips $range | grep -q '^'$ip'$'
+        	grep -q '^'$ip'$' $cachedir/prips_$netname
+
+        	ret=$?
+        	if [ "$ret" == "0" ]; then
+                if [ "$netname" == "vlan110" ]; then
+                    prefix="stor"
+                elif [ "$netname" == "localnet0" ]; then
+                    prefix='local'
+                else
+                    prefix='ext'
+                fi
+        		echo "=${prefix}_net_name_$vps=$netname"
+        		ipcalc --nocolor $range|grep '^Netmask'|awk -F" " '{print "='${prefix}'_net_netmask_'$vps'="$2}'
+        		ipcalc --nocolor $range|grep '^HostMin'|awk -F" " '{print "='${prefix}'_net_gw_'$vps'="$2}'
+                break
+        	fi
+        done
+    done
+
+    if [ "$ext_startip" != "" ]; then
+        IFS='./' read -ra ipnums <<<"$ext_startip"
+        if [ "${ipnums[1]}" != "" ]; then
+            for x in $(seq 0 $((count-1))); do 
+                echo "=ext_ip_$vmtype"-$((x+1))"="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))
+                ip="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))"
+                vps=$vmtype-$((x+1))
+                for i in "${!nets[@]}"
+                do
+                    range=${nets[$i]}
+                    netname=$i
+
+                	#prips $range | grep -q '^'$ip'$'
+                    grep -q '^'$ip'$' $cachedir/prips_$netname
+
+                	ret=$?
+                	if [ "$ret" == "0" ]; then
+                        if [ "$netname" == "vlan110" ]; then
+                            prefix="stor"
+                        elif [ "$netname" == "localnet0" ]; then
+                            prefix='local'
+                        else
+                            prefix='ext'
+                        fi
+
+                		echo "=${prefix}_net_name_$vps=$netname"
+                		ipcalc --nocolor $range|grep '^Netmask'|awk -F" " '{print "='${prefix}'_net_netmask_'$vps'="$2}'
+                		ipcalc --nocolor $range|grep '^HostMin'|awk -F" " '{print "='${prefix}'_net_gw_'$vps'="$2}'
+                        break
+                	fi
+                done
+
+            done
+        fi
+    fi
+
+    if [ "$stor_startip" != "" ]; then
+        IFS='./' read -ra ipnums <<<"$stor_startip"
+        if [ "${ipnums[1]}" != "" ]; then
+            for x in $(seq 0 $((count-1))); do 
+                echo "=stor_ip_$vmtype"-$((x+1))"="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))
+                ip="${ipnums[0]}.${ipnums[1]}.${ipnums[2]}.$((${ipnums[3]}+$x))"
+                vps=$vmtype-$((x+1))
+                for i in "${!nets[@]}"
+                do
+                    range=${nets[$i]}
+                    netname=$i
+
+                	#prips $range | grep -q '^'$ip'$'
+                    grep -q '^'$ip'$' $cachedir/prips_$netname
+
+                	ret=$?
+                	if [ "$ret" == "0" ]; then
+                        if [ "$netname" == "vlan110" ]; then
+                            prefix="stor"
+                        elif [ "$netname" == "localnet0" ]; then
+                            prefix='local'
+                        else
+                            prefix='ext'
+                        fi
+
+                		echo "=${prefix}_net_name_$vps=$netname"
+                		ipcalc --nocolor $range|grep '^Netmask'|awk -F" " '{print "='${prefix}'_net_netmask_'$vps'="$2}'
+                		ipcalc --nocolor $range|grep '^HostMin'|awk -F" " '{print "='${prefix}'_net_gw_'$vps'="$2}'
+                        break
+                	fi
+                done
+    
+            done
+        fi
+    fi
+fi
+

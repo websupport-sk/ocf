@@ -1,0 +1,48 @@
+auto lo
+iface lo inet loopback
+
+iface eth0 inet manual
+    mtu 9000
+
+iface eth1 inet manual
+    mtu 9000
+
+auto bond0
+iface bond0 inet manual
+        up /sbin/ifenslave bond0 eth0
+        up /sbin/ifenslave bond0 eth1
+        down /sbin/ifenslave -d bond0 eth0 eth1
+        mtu 9000
+
+# storage vlan
+allow-ovs br-vlan110
+auto br-vlan110
+iface br-vlan110 inet static
+        address ${openstack_interfaces.dc1nasa_ip}
+        netmask 255.255.248.0
+        mtu 9000
+        ovs_type OVSBridge
+        ovs_ports vlan110
+
+auto vlan110
+allow-br-vlan110 vlan110
+iface vlan110 inet manual
+        vlan_raw_device bond0
+        mtu 9000
+        up ifconfig vlan110 up
+        ovs_bridge br-vlan110
+        ovs_type OVSPort
+
+# frontend vlan
+auto vlan112
+iface vlan112 inet dhcp
+    vlan_raw_device bond0
+    mtu 9000
+
+# openstack vlans
+auto vlan600
+iface vlan600 inet manual
+    vlan_raw_device bond0
+    mtu 9000
+    up ifconfig vlan600 up
+

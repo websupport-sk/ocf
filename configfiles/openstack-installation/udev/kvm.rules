@@ -1,0 +1,1 @@
+SUBSYSTEM=="misc", KERNEL=="vhost-net", GROUP="kvm", MODE="0660"

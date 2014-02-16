@@ -1,0 +1,22 @@
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+	address ${openstack_provision.local_ip}
+	netmask ${openstack_provision.local_netmask}
+	post-up ip ro add 169.254.169.254 via ${openstack_provision.local_gw}
+
+auto eth1
+iface eth1 inet static
+	address ${openstack_provision.public_ip}
+	netmask ${openstack_provision.public_netmask}
+	gateway ${openstack_provision.public_gw}
+
+auto eth2
+iface eth2 inet static
+	address ${openstack_provision.stor_ip}
+	netmask ${openstack_provision.stor_netmask}
+    mtu 9000
+
+

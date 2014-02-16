@@ -1,0 +1,3 @@
+Defaults:nova !requiretty
+
+nova ALL=(ALL) NOPASSWD: ALL
