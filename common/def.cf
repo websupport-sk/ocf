@@ -167,8 +167,8 @@ bundle common def
 
 # dhcpd 
             "dhcpd[ddns-update-style]"      string  =>  "none";
-            "dhcpd[domain-name]"            string  =>  "dc1.websupport.sk";
-            "dhcpd[domain-name-servers]"    string  =>    join(",","services[ns]");
+            "dhcpd[domain-name]"            string  =>  $(domain);
+            "dhcpd[domain-name-servers]"    string  =>  join(",","services[ns]");
             "dhcpd[default-lease-time]"     int     =>  "1296000";
             "dhcpd[max-lease-time]"         int     =>  "2592000";
             "dhcpd[authoritative]"          string  =>  "authoritative";
