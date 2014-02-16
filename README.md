@@ -30,6 +30,6 @@ Other parts of infrastructure (monitoring,backup and log) are not implemented or
 ### TODO
 
 - cleaner code
-- integration with [ncf](www.ncf.io)
+- integration with http://www.ncf.io
 - full coverage of bundles with unit tests
 - support for monitoring, backup and log management infrastructure
