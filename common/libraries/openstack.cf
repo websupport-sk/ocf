@@ -17,12 +17,8 @@
 #############################################################################
 bundle agent openstack_config
 {
-	vars:
-	# some pkgs
-	        "pkgs[ubuntu][list]"    slist   =>  {   "prips", "ipcalc" };
-	        "pkgs[ubuntu][repo]"    string  =>  "";
-	        "pkgs[ubuntu][key]"     string  =>  "";
-
+    vars:
+        "pkgs[ubuntu][list]"    slist   =>  {   "prips", "ipcalc" };
 }
 
 
@@ -30,70 +26,55 @@ bundle agent os_setup
 {
     files:
         "/root/bin/os_cfengine"
-        handle  	=> "/root/bin/os_cfengine",
-        create  	=> "true",
-        perms   	=> mog("0755", "root", "root"),
-        edit_line =>  expand_template("$(def.path[templates])/openstack-provision/os_cfengine"),
-        edit_defaults 	=> empty;
+            handle          =>  "/root/bin/os_cfengine",
+            create          =>  "true",
+            perms           =>  mog("0755", "root", "root"),
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-provision/os_cfengine"),
+            edit_defaults   =>  empty;
 
-	methods:
-		"openstack_config"     usebundle =>    openstack_config;
-		"openstack_installrepo"     usebundle =>    installrepo("openstack");
-		"openstack_installpkgs"     usebundle =>    installpkgs("openstack");
-
+    methods:
+        "openstack_config"          usebundle   =>  openstack_config;
+        "openstack_installrepo"     usebundle   =>  installrepo("openstack");
+        "openstack_installpkgs"     usebundle   =>  installpkgs("openstack");
 }
 
 
 # called from libraries bundle
 bundle agent os_getinfo_fill_ips
 {
-	vars:
-		"vmtype"		slist => getindices("def.vmdefault");
+    vars:
+        "vmtype"    slist   =>  getindices("def.vmdefault");
 
-	commands:
-		# fill slist/string variables from openstack
-		# fill ips for instances
-		"/root/bin/os_cfengine ip_setvar $(vmtype) $(def.vmdefault[$(vmtype)][count]) $(def.vmdefault[$(vmtype)][localnet_startip]) $(def.vmdefault[$(vmtype)][extnet_startip])"
-		contain	=> in_shell,
-		module => "true";
-
-
-}
-
-## executed on apache.*
-bundle agent os_getinfo_get_default_route
-{
-	commands:
-		# fill slist/string variables from openstack
-		# fill ips for instances
-		"/root/bin/os_cfengine ip_get_default_route $(sys.host) lb_proxy $(def.vmdefault[lb_proxy][count]) $(def.vmdefault[lb_proxy][localnet_startip])"
-		contain	=> in_shell,
-		module => "true";
+    commands:
+        # fill slist/string variables from openstack
+        # fill ips for instances
+        "/root/bin/os_cfengine ip_setvar $(vmtype) $(def.vmdefault[$(vmtype)][count]) $(def.vmdefault[$(vmtype)][localnet_startip]) $(def.vmdefault[$(vmtype)][extnet_startip])"
+        contain    => in_shell,
+        module => "true";
 }
 
 #called from openstack controller node
 bundle agent os_getinfo
 {
-	vars:
-		"vmtype"		slist => getindices("def.vmdefault");
+    vars:
+        "vmtype"    slist   =>  getindices("def.vmdefault");
 
-	commands:
-		# fill slist/string variables from openstack
+    commands:
+        # fill slist/string variables from openstack
+        # fill ips for instances
+        "/root/bin/os_cfengine ip_setvar $(vmtype) $(def.vmdefault[$(vmtype)][count]) '$(def.vmdefault[$(vmtype)][localnet_startip])' '$(def.vmdefault[$(vmtype)][extnet_startip])' '$(def.vmdefault[$(vmtype)][stornet_startip])'"
+        module => "true";
 
-		# fill ips for instances
-		"/root/bin/os_cfengine ip_setvar $(vmtype) $(def.vmdefault[$(vmtype)][count]) '$(def.vmdefault[$(vmtype)][localnet_startip])' '$(def.vmdefault[$(vmtype)][extnet_startip])' '$(def.vmdefault[$(vmtype)][stornet_startip])'"
-		module => "true";
-
-		# slist nova_list_name, nova_list_name_suspended, nova_list_name_paused, nova_list_name_shutoff
+        # slist nova_list_name, nova_list_name_suspended, nova_list_name_paused, nova_list_name_shutoff
         "/root/bin/os_cfengine nova_list_all"
         module => "true";
 
         "/root/bin/os_cfengine flavor_list_all"
         module => "true";
 
-		#slist cinder_list_name, cinder_list_id
-		# string volume_name_to_id_$name=$id
-		# string snapshot_name_to_id_$name=$id
+        #slist cinder_list_name, cinder_list_id
+        # string volume_name_to_id_$name=$id
+        # string snapshot_name_to_id_$name=$id
         !os_cfengine_cinder_list_all::
             "/root/bin/os_cfengine cinder_list_all"
             module => "true";
@@ -101,6 +82,5 @@ bundle agent os_getinfo
         !os_cfengine_quantum_list_all::
             "/root/bin/os_cfengine quantum_list_all"
             module => "true";
-
 }
 

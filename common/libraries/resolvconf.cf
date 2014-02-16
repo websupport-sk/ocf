@@ -51,7 +51,7 @@ bundle edit_line resolvstr_default
         monitor::
             "nameserver 10.1.12.2";
             "nameserver 8.8.8.8";
-            "search websupport.sk dc1front.fnt dc1nas.nas dc1servermng.sem dc1netmng.nm dc1storagemng.som";
+            "search dc1front.fnt dc1nas.nas dc1servermng.sem dc1netmng.nm dc1storagemng.som";
 
 
         !monitor::

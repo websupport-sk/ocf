@@ -15,9 +15,10 @@
 #   along with this program; if not, write to the Free Software Foundation
 #   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 #############################################################################
+
 bundle agent generichost_config
 {
-	vars:
+    vars:
     "generic_list_phy"      slist   =>  { "lldpd" };
     "generic_list"          slist   =>  {
                             "dstat",
@@ -34,14 +35,14 @@ bundle agent generichost_config
                             "psmisc"
                             };
     phy::
-	"pkgs[ubuntu][list]"	slist	=> { @(generic_list_phy),@(generic_list) };
+    "pkgs[ubuntu][list]"    slist    => { @(generic_list_phy),@(generic_list) };
     !phy::
-	"pkgs[ubuntu][list]"	slist	=> { @(generic_list) };
+    "pkgs[ubuntu][list]"    slist    => { @(generic_list) };
 }
 
 bundle agent generichost
 {
-	methods:
+    methods:
             "genericsetup"  usebundle   =>  generichost_config;
             "aptnocache"    usebundle   =>  aptnocache;
             !fai::
@@ -56,8 +57,6 @@ bundle agent generichost
             "bash_prompt"   usebundle   =>  bash_prompt;
             "kill_dhclient" usebundle   =>  generichost_kill_dhclient;
             "kernel_update" usebundle   =>  generichost_kernel_update;
-            #!(fai|webadmin)::
-            #"runtmpfs"      usebundle   =>  generichost_runtmpfs;
 }
 
 bundle agent generichost_kill_dhclient
@@ -88,12 +87,12 @@ bundle agent generichost_sysctl
     commands:
         sysctl_conf_altered::
             "/sbin/sysctl -p"
-                handle		    => "sysctl_reload";
+                handle          => "sysctl_reload";
 }
 
 bundle agent generichost_cron
 {
-	processes:
+    processes:
         "ntpd"
             comment         =>  "If ntpd is running, do not run ntpdate",
             restart_class   =>  "ntpd_isnot_running";
@@ -135,6 +134,7 @@ bundle agent generichost_runtmpfs
                         "reports",
                         #"state" 
                         };
+
         "cfdirsempty"   slist   =>  {
                         "outputs",
                         "masterfiles",

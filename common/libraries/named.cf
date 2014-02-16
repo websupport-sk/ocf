@@ -15,10 +15,11 @@
 #   along with this program; if not, write to the Free Software Foundation
 #   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 #############################################################################
+
 bundle agent namedconf 
 {
-	vars:
-		"networks"	slist	=>	{ "@(def.bindzones)" };
+    vars:
+        "networks"  slist   =>  { "@(def.bindzones)" };
 
     classes:
         "named_reverse_ip_net_$(networks)" expression => regextract(
@@ -26,7 +27,7 @@ bundle agent namedconf
                                  "$(def.net[$(networks)][ip])",
                                  "reverse_ip_net_$(networks)"
                                  );
-	files:
+    files:
         "$(def.path[namedroot])/named.conf"
             handle          =>  "named_conf",
             comment         =>  "Insert our config to named.conf",
@@ -34,47 +35,46 @@ bundle agent namedconf
             perms           =>  mog("0644", "root", "root"),
             edit_defaults   =>  std_defs,
             edit_line       =>  append_if_no_line("include \"/etc/bind/named.conf.zones\";"),
+            classes         =>  if_repaired("restart_named");
+
+        "$(def.path[debian][namedroot])/named.conf.zones"
+            handle          =>  "named_conf_zones",
+            comment         =>  "Generating named.conf.zones",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_defaults   =>  empty,
+            edit_line       =>  named_conf_zones_main,
+            classes         =>  if_repaired("restart_named");
+
+        "$(def.path[debian][namedroot])/db.$(networks).$(def.net[$(networks)][domainsuf]).conf"
+            handle          =>  "db_$(networks)_$(def.net[$(networks)][domainsuf])_conf",
+            comment         =>  "Generating zone db.$(networks).$(def.net[$(networks)][domainsuf]).conf",
+            create          =>  "true",
+            perms           =>  mog"0644", "root", "root"),
+            edit_defaults   =>  empty,
+            edit_line       =>  "$(networks)"),
+            classes         =>  "restart_named");
+
+        "$(def.path[debian][namedroot])/db.$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf"
+            handle          =>  "db_$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf",
+            comment         =>  "Generating reverse zone db.$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_defaults   =>  empty,
+            edit_line       =>  named_conf_reverse_zone("$(networks)"),
             classes         =>  if_repaired("restart_named") ;
 
-			"$(def.path[debian][namedroot])/named.conf.zones"
-				handle	=>	"named_conf_zones",
-				comment	=> 	"Generating named.conf.zones",
-				create	=>	"true",
-				perms   => mog("0644", "root", "root"),
-				edit_defaults	=> empty,
-				edit_line	=> named_conf_zones_main,
-				classes => if_repaired("restart_named") ;
-
-			"$(def.path[debian][namedroot])/db.$(networks).$(def.net[$(networks)][domainsuf]).conf"
-				handle	=>	"db_$(networks)_$(def.net[$(networks)][domainsuf])_conf",
-				comment	=> 	"Generating zone db.$(networks).$(def.net[$(networks)][domainsuf]).conf",
-				create	=>	"true",
-				perms   => mog("0644", "root", "root"),
-				edit_defaults	=> empty,
-				edit_line	=> named_conf_zone("$(networks)"),
-				classes => if_repaired("restart_named") ;
-
-			"$(def.path[debian][namedroot])/db.$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf"
-				handle	=>	"db_$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf",
-				comment	=> 	"Generating reverse zone db.$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf",
-				create	=>	"true",
-				perms   => mog("0644", "root", "root"),
-				edit_defaults	=> empty,
-				edit_line	=> named_conf_reverse_zone("$(networks)"),
-				classes => if_repaired("restart_named") ;
-	commands:
-		restart_named::
-			"/etc/init.d/bind9 restart";
-
-
+    commands:
+        restart_named::
+            "/etc/init.d/bind9 restart";
 }
 
 bundle edit_line named_conf_zones_main
 {
-	vars:
-		"networks"	slist	=>	{ "@(def.bindzones)" };
+    vars:
+        "networks"    slist    =>    { "@(def.bindzones)" };
 
-	insert_lines:
+    insert_lines:
         "zone \"$(networks).$(def.net[$(networks)][domainsuf])\" { type master; file \"/etc/bind/db.$(networks).$(def.net[$(networks)][domainsuf]).conf\"; };";
         "zone \"$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa\" { type master; file \"/etc/bind/db.$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf\"; };";
 }
@@ -82,25 +82,25 @@ bundle edit_line named_conf_zones_main
 bundle edit_line named_conf_zone(networks)
 {
     vars:
-	    "services"	slist	=>	getindices("def.services");
-	    "ns_host"	slist	=>	getindices("def.services[ns_host]");
-	    "hosts"	slist	=>	getindices("phy_hosts.phy");
-	    "dnshosts"	slist	=>	getindices("def.dns");
+        "services"      slist   =>  getindices("def.services");
+        "ns_host"       slist   =>  getindices("def.services[ns_host]");
+        "hosts"         slist   =>  getindices("phy_hosts.phy");
+        "dnshosts"      slist   =>  getindices("def.dns");
         
     classes:
-        "$(phy_hosts.phy[$(hosts)][$(networks)_ip])_exists" expression => "any";
-        "$(def.dns[$(dnshosts)][$(networks)_ip])_exists" expression => "any";
+        "$(phy_hosts.phy[$(hosts)][$(networks)_ip])_exists" expression  =>  "any";
+        "$(def.dns[$(dnshosts)][$(networks)_ip])_exists"    expression  =>  "any";
 
 
     insert_lines:
         "; BIND data file for zone $(networks).$(def.net[$(networks)][domainsuf])";
         "$TTL   604800";
         "@  IN  SOA $(networks).$(def.net[$(networks)][domainsuf]).    hostmaster.$(networks).$(def.net[$(networks)][domainsuf]). (";
-        "2013062400	; Serial";
-        "604800		; Refresh";
-        "86400		; Retry";
-        "2419200	; Expire";
-        "604800 )	; Negative Cache TTL";
+        "2013062400    ; Serial";
+        "604800        ; Refresh";
+        "86400        ; Retry";
+        "2419200    ; Expire";
+        "604800 )    ; Negative Cache TTL";
         ";";
         "@      IN      NS      ns1.$(networks).$(def.net[$(networks)][domainsuf]).";
         "@      IN      NS      ns2.$(networks).$(def.net[$(networks)][domainsuf]).";
@@ -113,22 +113,19 @@ bundle edit_line named_conf_zone(networks)
 
          "$(dnshosts)   IN  A       $(def.dns[$(dnshosts)][$(networks)_ip])"
             ifvarclass => canonify("$(def.dns[$(dnshosts)][$(networks)_ip])_exists");
-#        reports:
-#            cfengine::
-#                "$(phy_hosts.phy[$(hosts)][$(networks)_ip])";
 }
 
 bundle edit_line named_conf_reverse_zone(networks)
 {
     vars:
-	    "services"	slist	=>	getindices("def.services");
-	    "ns_host"	slist	=>	getindices("def.services[ns_host]");
-	    "hosts"	slist	=>	getindices("phy_hosts.phy");
-	    "dnshosts"	slist	=>	getindices("def.dns");
+        "services"      slist   =>  getindices("def.services");
+        "ns_host"       slist   =>  getindices("def.services[ns_host]");
+        "hosts"         slist   =>  getindices("phy_hosts.phy");
+        "dnshosts"      slist   =>  getindices("def.dns");
         
     classes:
         "$(phy_hosts.phy[$(hosts)][$(networks)_ip])_exists" expression => "any";
-        "$(def.dns[$(dnshosts)][$(networks)_ip])_exists" expression => "any";
+        "$(def.dns[$(dnshosts)][$(networks)_ip])_exists"    expression => "any";
 
         "named_reverse_ip_host_$(hosts)" expression => regextract(
                                  "([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9]+)",
@@ -142,16 +139,15 @@ bundle edit_line named_conf_reverse_zone(networks)
                                  "reverse_ip_dnshost_$(dnshosts)"
                                  );
 
-
     insert_lines:
         "; BIND data file for zone $(networks).$(def.net[$(networks)][domainsuf])";
         "$TTL   604800";
         "@  IN  SOA $(networks).$(def.net[$(networks)][domainsuf]).    hostmaster.$(networks).$(def.net[$(networks)][domainsuf]). (";
-        "2013062400	; Serial";
-        "604800		; Refresh";
-        "86400		; Retry";
-        "2419200	; Expire";
-        "604800 )	; Negative Cache TTL";
+        "2013062400    ; Serial";
+        "604800        ; Refresh";
+        "86400        ; Retry";
+        "2419200    ; Expire";
+        "604800 )    ; Negative Cache TTL";
         ";";
         "@      IN      NS      ns1.$(networks).$(def.net[$(networks)][domainsuf]).";
         "@      IN      NS      ns2.$(networks).$(def.net[$(networks)][domainsuf]).";
@@ -165,12 +161,4 @@ bundle edit_line named_conf_reverse_zone(networks)
 
          "$(reverse_ip_dnshost_$(dnshosts)[4])   IN  PTR       $(dnshosts).$(networks).$(def.net[$(networks)][domainsuf])."
             ifvarclass => canonify("$(def.dns[$(dnshosts)][$(networks)_ip])_exists");
-
-#         "$(hosts)   IN  PTR       $(phy_hosts.phy[$(hosts)][$(networks)_ip])"
-#            ifvarclass => canonify("$(phy_hosts.phy[$(hosts)][$(networks)_ip])_exists");
-
-#        reports:
-#            cfengine::
-#                "$(phy_hosts.phy[$(hosts)][$(networks)_ip])";
 }
-

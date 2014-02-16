@@ -18,7 +18,6 @@
 bundle agent acng
 {
     files:
-        fai::
             "$(def.path[acngroot])/acng.conf"
                 handle          => "acng.conf",
                 create          => "true",
@@ -68,20 +67,19 @@ bundle agent acng
                 classes         => if_repaired("acng_restart");
 
     methods:
-        fai::
             "package" usebundle => installpkg("apt-cacher-ng");
 
     processes:
         "/usr/sbin/apt-cacher-ng"
-            handle          => "run_acng",
-            comment         => "Promise that apt-cacher-ng is running.",
-            restart_class   => "acng_start";
+                handle          => "run_acng",
+                comment         => "Promise that apt-cacher-ng is running.",
+                restart_class   => "acng_start";
 
     commands:
-        fai.acng_restart::
+        acng_restart::
             "/etc/init.d/apt-cacher-ng restart";
 
-        fai.acng_start::
+        acng_start::
             "/etc/init.d/apt-cacher-ng start";
 }
 
@@ -92,10 +90,10 @@ bundle edit_line acngcnf
         "LogDir: $(def.acng[conf][logdir])";
         "Port: $(def.acng[conf][port])";
         "BindAddress: $(def.acng[conf][binds])";
-	"Remap-debrep: file:deb_mirror*.gz /debian ; file:backends_debian";
-	"Remap-uburep: file:ubuntu_mirrors /ubuntu ; file:backends_ubuntu";
-	"Remap-debvol: file:debvol_mirror*.gz /debian-volatile ; file:backends_debvol";
-	"ReportPage: acng-report.html";
+        "Remap-debrep: file:deb_mirror*.gz /debian ; file:backends_debian";
+        "Remap-uburep: file:ubuntu_mirrors /ubuntu ; file:backends_ubuntu";
+        "Remap-debvol: file:debvol_mirror*.gz /debian-volatile ; file:backends_debvol";
+        "ReportPage: acng-report.html";
         "PfilePattern = .*(\.d?deb|\.rpm|\.key|\.drpm|\.cdiff|\.cvd|\.dsc|\.tar(\.gz|\.bz2|\.lzma|\.xz)(\.gpg)?|\.diff(\.gz|\.bz2|\.lzma|\.xz)|\.jigdo|\.template|changelog|copyright|\.udeb|\.debdelta|\.diff/.*\.gz|(Devel)?ReleaseAnnouncement(\?.*)?|[a-f0-9]+-(susedata|updateinfo|primary|deltainfo).xml.gz|fonts/(final/)?[a-z]+32.exe(\?download.*)?|/dists/.*/installer-[^/]+/[0-9][^/]+/images/.*)$";
         "ExTreshold: $(def.acng[conf][treshold])";
         "MaxStandbyConThreads: $(def.acng[conf][maxstandbythreads])";

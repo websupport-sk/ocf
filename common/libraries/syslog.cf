@@ -17,42 +17,42 @@
 #############################################################################
 bundle agent syslogconf
 {
-	methods:
-		"package"	usebundle =>	installpkg("rsyslog");
-        files:
-		"$(def.path[syslogconf])"
-			handle  => "syslog_conf",
-			create  => "true",
-			perms   => mog("0644", "root", "root"),
-			edit_line   => syslogstr,
-			edit_defaults => empty,
-			classes => if_repaired("syslogd_configtest");
+    methods:
+        "package"   usebundle   =>  installpkg("rsyslog");
+    files:
+        "$(def.path[syslogconf])"
+            handle          =>  "syslog_conf",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  syslogstr,
+            edit_defaults   =>  empty,
+            classes         =>  if_repaired("syslogd_configtest");
 
-		"$(def.path[syslogdefault])"
-			handle  => "syslog_default",
-			create  => "true",
-			perms   => mog("0644", "root", "root"),
-			edit_line   => insert_lines("RSYSLOGD_OPTIONS=\"$(def.syslog[r_options])\""),
-			edit_defaults => empty,
-			classes => if_repaired("syslogd_configtest");
+        "$(def.path[syslogdefault])"
+            handle          =>  "syslog_default",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  insert_lines("RSYSLOGD_OPTIONS=\"$(def.syslog[r_options])\""),
+            edit_defaults   =>  empty,
+            classes         =>  if_repaired("syslogd_configtest");
 
-	commands:
-		syslogd_configtest::
-			"/usr/sbin/rsyslogd $(def.syslog[r_options]) -N1"
-				handle		  => "syslogd_syntax_checked",
-				classes		 => default_retcodes("syslogd_config");
+    commands:
+        syslogd_configtest::
+            "/usr/sbin/rsyslogd $(def.syslog[r_options]) -N1"
+                handle      => "syslogd_syntax_checked",
+                classes     => default_retcodes("syslogd_config");
 
-		syslogd_config_ok::
-			"/usr/bin/service rsyslog restart"
-				depends_on	  => { "syslogd_syntax_checked" };
-				"/usr/bin/service rsyslog restart";
+        syslogd_config_ok::
+            "/usr/bin/service rsyslog restart"
+                depends_on  => { "syslogd_syntax_checked" };
+                "/usr/bin/service rsyslog restart";
 }
 
 
 bundle edit_line syslogstr
 {
         insert_lines:
-		"
+        "
 $ModLoad imuxsock
 $ModLoad imklog
 $ModLoad imfile
@@ -130,34 +130,34 @@ $InputRunFileMonitor
     "*.*            @10.10.10.12:514";
 
 any::
-		"
+        "
 ##### Local
-auth,authpriv.*			/var/log/auth.log
-*.*;auth,authpriv,mail.none		-/var/log/syslog
-daemon.*			-/var/log/daemon.log
-kern.*				-/var/log/kern.log
-lpr.*				-/var/log/lpr.log
-mail.*				-/var/log/mail.log
+auth,authpriv.*            /var/log/auth.log
+*.*;auth,authpriv,mail.none        -/var/log/syslog
+daemon.*            -/var/log/daemon.log
+kern.*                -/var/log/kern.log
+lpr.*                -/var/log/lpr.log
+mail.*                -/var/log/mail.log
 local0.*            -/var/log/mail.log
-user.*				-/var/log/user.log
-#mail.info			-/var/log/mail.info
-#mail.warn			-/var/log/mail.warn
-#mail.err			/var/log/mail.err
-#news.crit			/var/log/news/news.crit
-#news.err			/var/log/news/news.err
-#news.notice			-/var/log/news/news.notice
+user.*                -/var/log/user.log
+#mail.info            -/var/log/mail.info
+#mail.warn            -/var/log/mail.warn
+#mail.err            /var/log/mail.err
+#news.crit            /var/log/news/news.crit
+#news.err            /var/log/news/news.err
+#news.notice            -/var/log/news/news.notice
 
 *.=debug;\\
-	auth,authpriv.none;\\
-	news.none;mail.none	-/var/log/debug
+    auth,authpriv.none;\\
+    news.none;mail.none    -/var/log/debug
 *.=info;*.=notice;*.=warn;\\
-	auth,authpriv.none;\\
-	cron,daemon.none;\\
-	mail,news.none		-/var/log/messages
-*.emerg				:omusrmsg:*
+    auth,authpriv.none;\\
+    cron,daemon.none;\\
+    mail,news.none        -/var/log/messages
+*.emerg                :omusrmsg:*
 #daemon.*;mail.*;\\
-#	news.err;\\
-#	*.=debug;*.=info;\\
-#	*.=notice;*.=warn	|/dev/xconsole
+#    news.err;\\
+#    *.=debug;*.=info;\\
+#    *.=notice;*.=warn    |/dev/xconsole
 ";
 }

@@ -24,45 +24,46 @@ bundle agent bash_prompt
         test_is::
             "str"   string => "\[\033[0;32m\](testing)\[\033[00m\]",
                     policy => "overridable";
-        files:
-                debian::
-                        "/etc/profile.d/websupport.sh"
-                                delete          =>      tidy;
+    files:
+        "/etc/profile.d/ocf.sh"
+                delete          =>      tidy;
 
-                        "/etc/websupport.sh"
-                                handle          =>      "bash-prompt",
-                                create                  =>      "true",
-                                perms           =>      mog("0644","root","root"),
-                                comment         =>      "Configuring bash prompt",
-                                edit_defaults   =>      empty,
-                                edit_template   =>      "$(def.path[templates])/bash/websupport.sh";
-                        "/root/.bashrc"
-                                handle          =>      "bashrc stat",
-                                create          =>      "true",
-                                perms           =>      mog("0644","root","root"),
-                                edit_line       =>      bashprompt_line;
+        "/etc/ocf.sh"
+                handle          =>      "bash-prompt",
+                create          =>      "true",
+                perms           =>      mog("0644","root","root"),
+                comment         =>      "Configuring bash prompt",
+                edit_defaults   =>      empty,
+                edit_template   =>      "$(def.path[templates])/bash/websupport.sh";
+
+        "/root/.bashrc"
+                handle          =>      "bashrc stat",
+                create          =>      "true",
+                perms           =>      mog("0644","root","root"),
+                edit_line       =>      bashprompt_line;
 }
 
 bundle edit_line bashprompt_line
 {
     delete_lines:
-        "if [ -f /etc/profile.d/websupport.sh ]; then
-        . /etc/profile.d/websupport.sh
+        "if [ -f /etc/profile.d/ocf.sh ]; then
+        . /etc/profile.d/ocf.sh
         fi";
         "unset WSSET
-        if [ -f /etc/websupport.sh ]; then
-        . /etc/websupport.sh
+        if [ -f /etc/ocf.sh ]; then
+        . /etc/ocf.sh
         fi";
     insert_lines:
         "unset WSSET
-        if [ -f /etc/websupport.sh ]; then
-        . /etc/websupport.sh
+        if [ -f /etc/ocf.sh ]; then
+        . /etc/ocf.sh
         fi"
             insert_type => "preserve_block",
             location => basr_prompt_append;
 
 }
 
-body location basr_prompt_append {
+body location basr_prompt_append 
+{
     before_after => "after";
 }

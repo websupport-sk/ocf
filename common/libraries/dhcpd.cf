@@ -29,7 +29,6 @@ bundle agent dhcpdconf
         "networks"  slist   =>  { @(def.dhcpdzones) };
 
     files:
-        37_9_168_59::
             "$(def.path[debian][dhcpdroot])/dhcpd.conf"
                 handle          =>  "dhcpd_conf_new_fai",
                 comment         =>  "Generating dhcpd.conf",
@@ -39,17 +38,6 @@ bundle agent dhcpdconf
                 perms           =>  mog("0644","dhcpd","dhcpd"),
                 classes         =>  if_repaired("dhcpd_reload");
 
-        !37_9_168_59::
-            "$(def.path[debian][dhcpdroot])/dhcpd.conf"
-                handle          =>  "dhcpd_conf",
-                comment         =>  "Generating dhcpd.conf",
-                create          =>  "true",
-                edit_defaults	=>  empty,
-                edit_line       =>  dhcpconfmain,
-                perms           =>  mog("0644","root","root"),
-                classes         =>  if_repaired("dhcpd_reload");
-
-        37_9_168_59::
             "$(def.path[debian][dhcpdroot])/dhcpd.$(networks).conf"
                 handle          =>  "dhcpd_$(networks)_conf_new_fai",
                 comment         =>  "Generating dhcpd.$(networks).conf",
@@ -59,17 +47,6 @@ bundle agent dhcpdconf
                 perms           =>  mog("0644","dhcpd","dhcpd"),
                 classes         =>  if_repaired("dhcpd_reload");
 
-        !37_9_168_59::
-            "$(def.path[debian][dhcpdroot])/dhcpd.$(networks).conf"
-                handle          =>  "dhcpd_$(networks)_conf",
-                comment         =>  "Generating dhcpd.$(networks).conf",
-                create          =>  "true",
-                edit_defaults   =>  empty,
-                edit_line       =>  dhcpconfnet("$(networks)"),
-                perms           =>  mog("0644","root","root"),
-                classes         =>  if_repaired("dhcpd_reload");
-
-        37_9_168_59::
             "$(def.path[debian][dhcpdroot])/dhcpd.phyhosts.conf"
                 handle          =>  "dhcpd_phyhosts_conf_new_fai",
                 comment         =>  "Generating dhcpd.phyhosts.conf",
@@ -79,24 +56,14 @@ bundle agent dhcpdconf
                 perms           =>  mog("0644","dhcpd","dhcpd"),
                 classes         =>  if_repaired("dhcpd_reload");
 
-        !37_9_168_59::
-            "$(def.path[debian][dhcpdroot])/dhcpd.phyhosts.conf"
-                handle          =>  "dhcpd_phyhosts_conf",
-                comment         =>  "Generating dhcpd.phyhosts.conf",
-                create          =>  "true",
-                edit_defaults   =>  empty,
-                edit_line       =>  dhcpconfphy,
-                perms           =>  mog("0644","root","root"),
-                classes         =>  if_repaired("dhcpd_reload");
-
     commands:
         dhcpd_reload::
             "$(def.path[dhcpd]) -t"
-            classes     => default_retcodes("dhcpd_conf");
+                    classes     => default_retcodes("dhcpd_conf");
 
         dhcpd_conf_ok::
             "/etc/init.d/isc-dhcp-server restart";
-   reports:
+    reports:
         dhcpd_conf_failed::
             "dhcpd @ $(sys.host) reload failed";
 }
