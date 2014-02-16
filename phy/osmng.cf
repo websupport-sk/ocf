@@ -1,0 +1,771 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+##
+#
+###
+
+## generate new random passwords and store it to /root/.openstack/
+## this bundle is called on fai
+bundle agent osmng_setup_really_generate_passwords
+{
+    classes:
+        "openstack_rabbit_pw" expression    => isplain("$(def.path[debian][openstack_rabbit_pw])");
+        "openstack_mysql_$(osmng_config.os_services)_pw" expression    => isplain("$(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw])");
+        "openstack_keystone_token" expression    => isplain("$(def.path[debian][openstack_keystone_token])");
+        "openstack_keystone_admin_pw" expression    => isplain("$(def.path[debian][openstack_keystone_admin_pw])");
+        "openstack_id_rsa" expression => isplain("$(def.path[debian][openstack_id_rsa])");
+
+    files:
+        #directory for passwords
+        "$(def.path[debian][openstack_passwords])."
+        handle      => "$(def.path[debian][openstack_passwords]).",
+        create      => "true",
+        perms       => mog("0700", "root", "root");
+        
+    commands:
+        #rabbit
+        "if [ ! -s $(def.path[debian][openstack_rabbit_pw]) ]; then /usr/bin/apg -n 1 -M NCL -m 12 > $(def.path[debian][openstack_rabbit_pw]); chmod 600 $(def.path[debian][openstack_rabbit_pw]) ; fi"
+            contain => in_shell,
+            ifvarclass => "!openstack_rabbit_pw";
+
+        #mysql
+        "if [ ! -s $(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw]) ]; then /usr/bin/apg -n 1 -M NCL -m 12 > $(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw]); chmod 600 $(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw]) ; fi"
+            contain => in_shell,
+            ifvarclass => not(classify("openstack_mysql_$(osmng_config.os_services)_pw"));
+
+        #keystone admin token
+        "if [ ! -s $(def.path[debian][openstack_keystone_token]) ]; then /usr/bin/apg -n 1 -M NCL -m 12 > $(def.path[debian][openstack_keystone_token]); chmod 600 $(def.path[debian][openstack_keystone_token]) ; fi"
+            contain => in_shell,
+            ifvarclass => "!openstack_keystone_token";
+
+        #keystone user admin password
+        "if [ ! -s $(def.path[debian][openstack_keystone_admin_pw]) ]; then /usr/bin/apg -n 1 -M NCL -m 12 > $(def.path[debian][openstack_keystone_admin_pw]); chmod 600 $(def.path[debian][openstack_keystone_admin_pw]) ; fi" 
+            contain => in_shell,
+            ifvarclass => "!openstack_keystone_admin_pw";
+
+        "if [ ! -s $(def.path[debian][openstack_id_rsa_pub]) ]; then cd /root/.openstack/;ssh-keygen -q -f id_rsa -N \"\" ; fi" 
+            contain => in_shell,
+            ifvarclass => "!openstack_id_rsa";
+
+}
+
+##
+## copy passwords from policy_hub server
+##
+bundle agent osmng_setup_copy_passwords
+{
+    vars:
+        "id_rsa_pub_content"    string => execresult("cat $(def.path[debian][openstack_id_rsa_pub])","useshell");
+
+    classes:
+        "id_rsa_pub_exist"  expression => isplain("$(def.path[debian][openstack_id_rsa_pub])");
+
+    files:
+        #rabbit
+        "$(def.path[debian][openstack_rabbit_pw])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_rabbit_pw])","$(sys.policy_hub)");
+
+        #mysql
+        "$(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw])","$(sys.policy_hub)");
+
+        #keystone token
+        "$(def.path[debian][openstack_keystone_token])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_keystone_token])","$(sys.policy_hub)");
+
+        #keystone admin password
+        "$(def.path[debian][openstack_keystone_admin_pw])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_keystone_admin_pw])","$(sys.policy_hub)");
+
+        #id_rsa/id_rsa.pub
+        "$(def.path[debian][openstack_id_rsa])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_id_rsa])","$(sys.policy_hub)");
+        "$(def.path[debian][openstack_ssh_id_rsa])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_id_rsa])","$(sys.policy_hub)");
+
+        "$(def.path[debian][openstack_id_rsa_pub])"
+        copy_from       => remote_cp("$(def.path[debian][openstack_id_rsa_pub])","$(sys.policy_hub)");
+
+        id_rsa_pub_exist::
+            "$(def.path[debian][openstack_ssh_id_rsa_pub])"
+            perms => m("644"),
+            create => "true",
+            edit_line => append_if_no_lines("$(id_rsa_pub_content)"),
+            action => if_elapsed("60");
+
+
+
+}
+
+##
+## fill variables from password files
+##
+bundle agent osmng_setup_generate_passwords
+{
+
+    vars:
+        #rabbit
+        "os_rabbit_password"  string => execresult("if [ -s $(def.path[debian][openstack_rabbit_pw]) ]; then cat $(def.path[debian][openstack_rabbit_pw]) | tr -d '\n'; fi", "useshell");
+
+        #mysql
+        "os_mysql_$(osmng_config.os_services)_password"  string => execresult("if [ -s $(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw]) ]; then cat $(def.path[debian][openstack_mysql_$(osmng_config.os_services)_pw]) | tr -d '\n'; fi", "useshell");
+
+        #keystone admin token
+        "os_keystone_token"  string => execresult("if [ -s $(def.path[debian][openstack_keystone_token]) ]; then cat $(def.path[debian][openstack_keystone_token]) | tr -d '\n' ; fi", "useshell");
+
+        #keystone user admin password
+        "os_keystone_admin_password"  string => execresult("if [ -s $(def.path[debian][openstack_keystone_admin_pw]) ]; then cat $(def.path[debian][openstack_keystone_admin_pw]) | tr -d '\n'; fi", "useshell");
+}
+
+bundle agent osmng_setup_cfengine
+{
+    files:
+        "/root/bin/os_cfengine"
+        handle  	=> "osmng /root/bin/os_cfengine",
+        create  	=> "true",
+        perms   	=> mog("0755", "root", "root"),
+        edit_line =>  expand_template("$(def.path[templates])/openstack-provision/os_cfengine"),
+        edit_defaults 	=> empty;
+
+}
+
+#called from openstack controller node
+bundle agent osmng_setup_getinfo
+{
+	vars:
+		"extnet_names"		slist => getindices("def.openstack[extnet]");
+		"localnet_names"	slist => getindices("def.openstack[localnet]");
+
+	commands:
+		# fill slist/string variables from openstack
+        "/root/bin/os_cfengine service_status"
+        module => "true";
+
+        "/root/bin/os_cfengine quantum_list_all"
+        module => "true",
+        classes =>  if_repaired("os_cfengine_quantum_list_all");
+
+        "/root/bin/os_cfengine glance_list_all"
+        module => "true",
+        classes =>  if_repaired("os_cfengine_glance_list_all");
+
+        "/root/bin/os_cfengine cinder_list_all"
+        module => "true",
+        classes =>  if_repaired("os_cfengine_cinder_list_all");
+
+        "/root/bin/os_cfengine keystone_tenant_list_all"
+        module => "true",
+        classes =>  if_repaired("os_cfengine_keystone_tenant_list_all");
+
+        "/root/bin/os_cfengine nova_cinder_quantum_quota_list_all $(os_cfengine.keystone_tenant_admin)"
+        module => "true";
+
+        "/root/bin/os_cfengine nova_cinder_quantum_quota_list_all $(os_cfengine.keystone_tenant_websupport)"
+        module => "true";
+
+
+
+}
+
+
+bundle agent osmng_setup_memcached
+{
+    files:
+        "/etc/memcached.conf"
+        handle      =>  "openstack memcached.conf",
+        create      =>  "true",
+        perms       =>  mog("0600","root","root"),
+        comment     =>  "Configuring /etc/memcached.cnf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/memcached/memcached.conf"),
+        classes     =>  if_repaired("memcached_restart");
+
+    commands:
+         memcached_restart::
+            "/usr/sbin/service memcached restart";
+}
+
+bundle agent osmng_setup_mysql
+{
+    files:
+        ## set our own my.cnf to change bind_address
+        "/etc/mysql/my.cnf"
+        handle      =>  "openstack my.cnf",
+        create      =>  "true",
+        perms       =>  mog("0600","root","root"),
+        comment     =>  "Configuring /etc/mysql/my.cnf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/mysql/my.cnf"),
+        classes     =>  if_repaired("mysql_restart");
+
+    commands:
+        # create mysql users if not exists
+        "/usr/bin/mysql -e 'select concat(\"+mysql_user_exists_\",user) from mysql.user group by user' -ss"
+            module => "true",
+            contain => in_shell;
+
+        "/usr/bin/mysql -e 'CREATE DATABASE $(osmng_config.os_services) CHARACTER SET UTF8'; /usr/bin/mysql -e \"GRANT ALL ON $(osmng_config.os_services).* TO \`$(osmng_config.os_services)\`@\`%\` IDENTIFIED BY '$(osmng_setup_generate_passwords.os_mysql_$(osmng_config.os_services)_password)'\""
+            ifvarclass => "!mysql_user_exists_$(osmng_config.os_services)",
+            contain => in_shell;
+        mysql_restart::
+            "/usr/sbin/service mysql restart";
+        
+}
+
+bundle agent osmng_setup_bashrc
+{
+    files:
+    ## bashrc file
+        "/root/.openstackrc"
+        handle      =>  ".openstackrc.sh",
+        create      =>  "true",
+        perms       =>  mog("0755","root","root"),
+        comment     =>  "Configuring /root/.openstackrc",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/openrc"),
+        classes     =>  if_repaired("openstackrc_created");
+
+
+    commands:
+        openstackrc_created::
+            "grep -q 'openstackrc' /root/.bashrc || echo '. ~/.openstackrc' >>/root/.bashrc"
+                contain => in_shell;
+
+
+}
+
+bundle agent osmng_setup_keystone
+{
+    files:
+    ## set keystone.conf from template
+        "/etc/keystone/keystone.conf"
+        handle      =>  "openstack keystone.cnf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/keystone/keystone.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/keystone/keystone.conf"),
+        classes     =>  if_repaired("keystone_restart");
+
+    ## create support scripts
+        "/var/run/keystone-data.sh"
+        handle      =>  "keystone-data.sh",
+        create      =>  "true",
+        perms       =>  mog("0700","root","root"),
+        comment     =>  "Configuring /root/keystone-data.sh",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/keystone-data.sh"),
+        classes     =>  if_repaired("keystone_data_created");
+
+        "/var/run/keystone-endpoints.sh"
+        handle      =>  "keystone-endpoints.sh",
+        create      =>  "true",
+        perms       =>  mog("0700","root","root"),
+        comment     =>  "Configuring /root/keystone-endpoints.sh",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/keystone-endpoints.sh"),
+        classes     =>  if_repaired("keystone_endpoints_created");
+        
+
+
+    commands:
+        keystone_restart::
+            "if [ -f /var/lib/keystone/keystone.db ]; then rm /var/lib/keystone/keystone.db; fi"
+                contain => in_shell;
+            "/usr/sbin/service keystone restart";
+            "/usr/bin/keystone-manage db_sync";
+        keystone_data_created::
+            "/var/run/keystone-data.sh";
+        keystone_endpoints_created::
+            "/var/run/keystone-endpoints.sh";
+            
+
+}
+
+bundle agent osmng_setup_rabbit
+{
+    commands:
+        ## remove guest user if exists
+        "/usr/sbin/rabbitmqctl list_users | grep -q guest && /usr/sbin/rabbitmqctl delete_user guest || exit 0"
+                contain => in_shell;
+
+        ## check if openstack user exists
+        "/usr/sbin/rabbitmqctl list_users|grep -q openstack || echo +os_rabbit_user_not_exists"
+                module => "true",
+                contain => in_shell;
+
+        ## create openstack user
+        os_rabbit_user_not_exists::
+            "/usr/sbin/rabbitmqctl add_user openstack $(osmng_setup_generate_passwords.os_rabbit_password)"
+                    contain => in_shell;
+            "/usr/sbin/rabbitmqctl set_permissions -p / openstack \".*\" \".*\" \".*\""
+                    contain => in_shell;
+
+}
+
+bundle agent osmng_setup_nova
+{
+    files:
+        "/etc/sudoers.d/nova_sudoers_sudo"
+        handle      =>  "osmng nova_sudoers_sudo",
+        create      =>  "true",
+        perms       =>  mog("0440","root","root"),
+        comment     =>  "Configuring /etc/sudoers.d/nova_sudoers_sudo",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/sudoers.d/nova_sudoers_sudo"),
+        classes     =>  if_repaired("nova_restart");
+
+        "/etc/nova/nova.conf"
+        handle      =>  "openstack nova.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/nova/nova.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/nova/nova.conf"),
+        classes     =>  if_repaired("nova_restart");
+
+        "/etc/nova/api-paste.ini"
+        handle      =>  "openstack api-paste.ini",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/nova/api-paste.ini",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/nova/api-paste.ini"),
+        classes     =>  if_repaired("nova_restart");
+
+    commands:
+        nova_restart::
+            "/usr/bin/nova-manage db sync";
+            "/usr/sbin/service nova-api restart";
+            "/usr/sbin/service nova-conductor restart";
+            "/usr/sbin/service nova-consoleauth restart";
+            "/usr/sbin/service nova-scheduler restart";
+            "/usr/sbin/service nova-novncproxy restart";
+    
+}
+
+bundle agent osmng_setup_quantum
+{
+    files:
+        "/etc/sudoers.d/quantum_sudoers_sudo"
+        handle      =>  "osmng quantum_sudoers_sudo",
+        create      =>  "true",
+        perms       =>  mog("0440","root","root"),
+        comment     =>  "Configuring /etc/sudoers.d/quantum_sudoers_sudo",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/sudoers.d/quantum_sudoers_sudo"),
+        classes     =>  if_repaired("quantum_restart");
+
+        "/etc/quantum/quantum.conf"
+        handle      =>  "openstack quantum.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/quantum/quantum.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/quantum.conf"),
+        classes     =>  if_repaired("quantum_restart");
+
+        "/etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"
+        handle      =>  "openstack ovs_quantum_plugin.ini",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"),
+        classes     =>  if_repaired("quantum_restart");
+
+    commands:
+        quantum_restart::
+            "/usr/sbin/service quantum-server restart";
+
+}
+
+bundle agent osmng_setup_quantum_networks
+{
+    vars:
+        "networks"          slist => getindices("def.net");
+
+    
+	classes:
+        "is_os_ext_network_$(networks)"         expression  => strcmp("$(def.net[$(networks)][openstack])","ext");
+        "is_os_int_network_$(networks)"         expression  => strcmp("$(def.net[$(networks)][openstack])","int");
+		"net_exist_$(networks)"		expression	=> strcmp("$(os_cfengine.quantum_net_list_name)","$(networks)");
+		"subnet_exist_$(networks)"		expression	=> strcmp("$(os_cfengine.quantum_subnet_list_name)","$(networks)");
+        "has_os_router_$(networks)"     expression  => isvariable("def.net[$(networks)][openstack_router]");
+        "has_os_router_gw_net_$(networks)"     expression  => isvariable("def.net[$(networks)][openstack_router_gw_net]");
+        "router_exists_$(networks)"     expression  => strcmp("$(os_cfengine.quantum_router_list_name)","$(def.net[$(networks)][openstack_router])");
+
+	commands:
+		#"/root/bin/os_cfengine exec /usr/bin/quantum net-create $(networks) --shared --tenant_id admin --provider:network_type vlan --provider:physical_network $(networks) --provider:segmentation_id $(def.net[$(networks)][vlanid]) --router:external=True"
+		#	ifvarclass => "is_os_ext_network_$(networks).!net_exist_$(networks))";
+
+		#"/root/bin/os_cfengine exec /usr/bin/quantum net-create $(networks) --shared --tenant_id admin --provider:network_type vlan --provider:physical_network $(networks) --provider:segmentation_id $(def.net[$(networks)][vlanid])"
+		#	ifvarclass => "is_os_int_network_$(networks).!net_exist_$(networks))";
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum net-create $(networks) --shared --tenant_id admin --provider:network_type flat --provider:physical_network $(networks) --router:external=True"
+			ifvarclass => "is_os_ext_network_$(networks).!net_exist_$(networks))";
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum net-create $(networks) --shared --tenant_id admin --provider:network_type flat --provider:physical_network $(networks)"
+			ifvarclass => "is_os_int_network_$(networks).!net_exist_$(networks))";
+
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum subnet-create --name $(networks) --tenant-id admin --disable-dhcp $(networks) $(def.net[$(networks)][ip])$(def.net[$(networks)][shortmask])"
+			ifvarclass => "is_os_ext_network_$(networks).net_exist_$(networks).!subnet_exist_$(networks))";
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum subnet-create --name $(networks) --tenant-id admin $(networks) $(def.net[$(networks)][ip])$(def.net[$(networks)][shortmask])"
+			ifvarclass => "is_os_int_network_$(networks).net_exist_$(networks).!subnet_exist_$(networks))";
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum router-create $(def.net[$(networks)][openstack_router])"
+			ifvarclass => "is_os_int_network_$(networks).has_os_router_$(networks).subnet_exist_$(networks).!router_exists_$(networks)";
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum router-interface-add $(def.net[$(networks)][openstack_router]) $(networks)"
+			ifvarclass => "is_os_int_network_$(networks).has_os_router_$(networks).subnet_exist_$(networks).!router_exists_$(networks)";
+
+		"/root/bin/os_cfengine exec /usr/bin/quantum router-gateway-set $(def.net[$(networks)][openstack_router]) $(def.net[$(networks)][openstack_router_gw_net])"
+			ifvarclass => "is_os_int_network_$(networks).has_os_router_$(networks).has_os_router_gw_net_$(networks).subnet_exist_$(networks).!router_exists_$(networks)";
+
+}
+
+bundle agent osmng_setup_glance
+{
+    files:
+        ## set glance-api.conf and glance-registry.conf from template
+        "/etc/glance/glance-api.conf"
+        handle      =>  "openstack glance-api.cnf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/glance/glance-api.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/glance/glance-api.conf"),
+        classes     =>  if_repaired("glance_restart");
+        "/etc/glance/glance-registry.conf"
+        handle      =>  "openstack glance-registry.cnf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/glance/glance-registry.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/glance/glance-registry.conf"),
+        classes     =>  if_repaired("glance_restart");
+        "/etc/glance/glance-cache.conf"
+        handle      =>  "openstack glance-cache.cnf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/glance/glance-cache.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/glance/glance-cache.conf"),
+        classes     =>  if_repaired("glance_restart");
+        "/etc/glance/glance-scrubber.conf"
+        handle      =>  "openstack glance-scrubber.cnf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/glance/glance-scrubber.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/glance/glance-scrubber.conf"),
+        classes     =>  if_repaired("glance_restart");
+
+        "/data/glance/."
+        handle      => "/data/glance/.",
+        create      => "true",
+        perms       => mog("0700", "glance", "glance"),
+        classes     =>  if_repaired("glance_restart");
+        "/data/glance/images/."
+        handle      => "/data/glance/images/.",
+        create      => "true",
+        perms       => mog("0700", "glance", "glance"),
+        classes     =>  if_repaired("glance_restart");
+        "/data/glance/image-cache/."
+        handle      => "/data/glance/scrubber/.",
+        create      => "true",
+        perms       => mog("0700", "glance", "glance"),
+        classes     =>  if_repaired("glance_restart");
+
+    commands:
+        glance_restart::
+            "if [ -f /var/lib/glance/glance.sqlite ]; then rm /var/lib/glance/glance.sqlite; fi"
+                contain => in_shell;
+            "/usr/bin/glance-manage version_control 0";
+            "/usr/bin/glance-manage db_sync";
+            "/usr/sbin/service glance-api restart";
+            "/usr/sbin/service glance-registry restart";
+}
+
+bundle agent osmng_setup_horizon
+{
+    files:
+        "/etc/openstack-dashboard/local_settings.py"
+        handle      =>  "/etc/openstack-dashboard/local_settings.py",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/openstack-dashboard/local_settings.py",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/openstack-dashboard/local_settings.py"),
+        classes     =>  if_repaired("dashboard_restart");
+
+        "/var/www/index.html"
+        handle      =>  "/var/www/index.html",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /var/www/index.html",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/index.html");
+
+
+    commands:
+        dashboard_restart::
+            "/usr/sbin/service apache2 restart";
+
+    packages:
+        "openstack-dashboard-ubuntu-theme"
+        package_policy => "delete",
+        package_method => apt,
+        comment => "Odstranenie ubuntu temy z horizonu";
+
+
+    
+}
+
+bundle agent osmng_setup_cinder
+{
+
+    vars:
+        "shares"    slist   => {@(def.cindershares[netapp1]), @(def.cindershares[netapp2])};
+
+    files:
+        "/etc/sudoers.d/cinder_sudoers_sudo"
+        handle      =>  "osmng cinder_sudoers_sudo",
+        create      =>  "true",
+        perms       =>  mog("0440","root","root"),
+        comment     =>  "Configuring /etc/sudoers.d/cinder_sudoers_sudo",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/sudoers.d/cinder_sudoers_sudo"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/etc/cinder/cinder.conf"
+        handle      =>  "openstack cinder.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/cinder/cinder.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/cinder/cinder.conf"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/etc/cinder/api-paste.ini"
+        handle      =>  "openstack cinder api-paste.ini",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/cinder/api-paste.ini",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/cinder/api-paste.ini"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/etc/cinder/shares_$(shares).conf"
+        handle      =>  "openstack cinder shares_$(shares).conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/cinder/shares_$(shares).conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/cinder/shares_$(shares).conf"),
+        classes     =>  if_repaired("cinder_restart");
+
+    commands:
+        cinder_restart::
+            "/usr/bin/cinder-manage db sync";
+            "/usr/sbin/service cinder-api restart";
+            "/usr/sbin/service cinder-scheduler restart";
+
+}
+
+bundle agent osmng_setup_cinder_types
+{
+    vars:
+        "shares"    slist   => {@(def.cindershares[netapp1]), @(def.cindershares[netapp2])};
+
+    classes:
+        "exist_$(shares)"  expression => isvariable("os_cfengine.cinder_type_name_$(shares)");
+        "not_exist_$(shares)"  not => "exist_$(shares)";
+        "typekey_create_$(shares)"  or => { classify("not_exist_$(shares)"), classify("cinder_type_name_spec_empty_$(shares)") };
+    commands:
+        "/root/bin/os_cfengine exec /usr/bin/cinder type-create $(shares)"
+            ifvarclass => "!exist_$(shares)";
+
+        "/root/bin/os_cfengine exec /usr/bin/cinder type-key $(shares) set volume_backend_name=$(shares)"
+            ifvarclass => "typekey_create_$(shares)";
+
+}
+
+bundle agent osmng_setup_ubuntu_minimal_image(volume_type)
+{
+    vars:
+        "template_name" string => "ubuntu-1204-minimal-template";
+        "cinder_volume_id_$(volume_type)" string => "$(os_cfengine.volume_name_type_to_id_$(template_name)_$(volume_type))";
+
+    classes:
+        "ubuntu_image_exist" expression => isplain("/data/ubuntu-1204-minimal-template.qcow2");
+        "exist_in_glance" expression => strcmp("$(template_name)","$(os_cfengine.glance_list_name)");
+        "exist_in_cinder_$(volume_type)" expression => isvariable("os_cfengine.cinder_volume_name_on_volume_type_$(template_name)_$(volume_type)");
+        "exist_in_cinder_snapshot_$(volume_type)_$(cinder_volume_id_$(volume_type))" expression => isvariable("os_cfengine.snapshot_volid_to_id_$(cinder_volume_id_$(volume_type))");
+        "not_exist_in_cinder_snapshot_$(volume_type)_$(cinder_volume_id_$(volume_type))" not => classify("exist_in_cinder_snapshot_$(volume_type)_$(cinder_volume_id_$(volume_type))");
+        "create_snapshot_$(volume_type)_$(cinder_volume_id_$(volume_type))" and => { "exist_in_cinder_$(volume_type)", classify("not_exist_in_cinder_snapshot_$(volume_type)_$(cinder_volume_id_$(volume_type))") };
+
+    commands:
+        !ubuntu_image_exist::
+            "/usr/bin/wget -q -O /data/ubuntu-1204-minimal-template.qcow2 http://cfmaster/ubuntu-1204-minimal-template.qcow2";
+
+        !exist_in_glance::
+            "/root/bin/os_cfengine exec /usr/bin/glance image-create --disk-format qcow2 --container-format bare --file /data/ubuntu-1204-minimal-template.qcow2 --is-public True --name ubuntu-1204-minimal-template";
+            "/root/bin/os_cfengine glance_list_all"
+            module => "true";
+
+        any::
+        "/root/bin/os_cfengine exec /usr/bin/cinder create --image-id $(os_cfengine.glance_image_name_to_id_$(template_name)) --display-name $(template_name) --volume-type $(volume_type) 20"
+            ifvarclass => "!exist_in_cinder_$(volume_type).!cinder_type_name_spec_empty_$(volume_type)";
+
+        "/root/bin/os_cfengine exec /usr/bin/cinder snapshot-create --display-name $(template_name) $(cinder_volume_id_$(volume_type))"
+        ifvarclass => and(classify("create_snapshot_$(volume_type)_$(cinder_volume_id_$(volume_type))"),classify("cinder_volume_$(cinder_volume_id_$(volume_type))_available"));
+
+}
+
+bundle agent osmng_setup_quota
+{
+    vars:
+        "tenants"   slist => { "admin", "websupport", "vps" };
+
+    classes:
+        "cores_$(os_cfengine.keystone_tenant_$(tenants))"   not => strcmp("$(os_cfengine.nova_quota_$(os_cfengine.keystone_tenant_$(tenants))_cores)","10000");
+        "instances_$(os_cfengine.keystone_tenant_$(tenants))"    not => strcmp("$(os_cfengine.nova_quota_$(os_cfengine.keystone_tenant_$(tenants))_instances)","1000");
+        "ram_$(os_cfengine.keystone_tenant_$(tenants))"    not => strcmp("$(os_cfengine.nova_quota_$(os_cfengine.keystone_tenant_$(tenants))_ram)","10485760");
+        "volumes_$(os_cfengine.keystone_tenant_$(tenants))"    not => strcmp("$(os_cfengine.cinder_quota_$(os_cfengine.keystone_tenant_$(tenants))_volumes)","10000");
+        "snapshots_$(os_cfengine.keystone_tenant_$(tenants))"    not => strcmp("$(os_cfengine.cinder_quota_$(os_cfengine.keystone_tenant_$(tenants))_snapshots)","10000");
+        "gigabytes_$(os_cfengine.keystone_tenant_$(tenants))"    not => strcmp("$(os_cfengine.cinder_quota_$(os_cfengine.keystone_tenant_$(tenants))_gigabytes)","102400");
+        "quantum_port_$(os_cfengine.keystone_tenant_$(tenants))"    not => strcmp("$(os_cfengine.quantum_quota_$(os_cfengine.keystone_tenant_$(tenants))_port)","8192");
+
+
+    commands:
+        "/root/bin/os_cfengine exec nova quota-update --cores 10000 $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("cores_$(os_cfengine.keystone_tenant_$(tenants))");
+
+        "/root/bin/os_cfengine exec nova quota-update --instances 1000 $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("instances_$(os_cfengine.keystone_tenant_$(tenants))");
+
+        "/root/bin/os_cfengine exec nova quota-update --ram 10485760 $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("ram_$(os_cfengine.keystone_tenant_$(tenants))");
+
+        "/root/bin/os_cfengine exec cinder quota-update --volumes 10000 $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("volumes_$(os_cfengine.keystone_tenant_$(tenants))");
+
+        "/root/bin/os_cfengine exec cinder quota-update --snapshots 10000 $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("snapshots_$(os_cfengine.keystone_tenant_$(tenants))");
+
+        "/root/bin/os_cfengine exec cinder quota-update --gigabytes 102400 $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("gigabytes_$(os_cfengine.keystone_tenant_$(tenants))");
+
+        "/root/bin/os_cfengine exec quantum quota-update --port 8192 --tenant-id $(os_cfengine.keystone_tenant_$(tenants))"
+            ifvarclass => classify("quantum_port_$(os_cfengine.keystone_tenant_$(tenants))");
+
+}
+
+bundle agent osmng_config
+{
+	vars:
+        "os_services"       slist   => { "keystone","nova","glance","cinder","quantum" };
+        "os_bind_address"   string => "$(phy_hosts.phy[osmng][ip])";
+
+		"pkgs[debian][list]"	slist	=>	{
+                                                "vim",
+                								"mtr",
+                                                "apg",
+                                                "ntp",
+                                                "dstat",
+                                                "memcached",
+                                                "haproxy",
+                                                "keepalived",
+                                                "libapache2-mod-wsgi",
+                                                "postfix",
+							};
+
+        "pkgs[websupport][list]"  slist   => {
+                                                "nova-api",
+                                                "nova-novncproxy",
+                                                "nova-scheduler",
+                                                "nova-conductor",
+                                                "nova-consoleauth",
+                                                "cinder-api",
+                                                "cinder-scheduler",
+                                                "glance-api",
+                                                "glance-registry",
+                                                "quantum-server",
+                                                "quantum-plugin-openvswitch",
+                                                "keystone",
+                                                "openstack-dashboard",
+                                                "qemu-utils",
+                                            };
+    	"pkgs[websupport][repo]"   string  => "deb http://repo.websupport.sk/ubuntu precise main";
+    	"pkgs[websupport][key]"	string  => "http://repo.websupport.sk/key.key";
+
+        "pkgs[rabbitmq][list]"  slist   => { "rabbitmq-server" };
+    	"pkgs[rabbitmq][repo]"   string  => "deb http://www.rabbitmq.com/debian/ testing main";
+    	"pkgs[rabbitmq][key]"	string  => "http://www.rabbitmq.com/rabbitmq-signing-key-public.asc";
+
+        #FIXME: 18.september 2013 - vysla nova verzia libmariadbclient a rozjebala instalaciu mariadb-galera-server, prepinam docasne na klasicku mariadb
+        #"pkgs[mariadb][list]"  slist   => { "mariadb-galera-server-5.5" };
+        "pkgs[mariadb][list]"  slist   => { "mariadb-server-5.5" };
+    	"pkgs[mariadb][repo]"   string  => "deb http://mirror.vpsfree.cz/mariadb/repo/5.5/ubuntu precise main";
+    	"pkgs[mariadb][key]"	string  => "http://yum.mariadb.org/RPM-GPG-KEY-MariaDB";
+}
+
+bundle agent osmng_main {
+    methods:
+	"osmng_config"          usebundle =>    osmng_config;
+	"osmng_installrepo"     usebundle =>    installrepo("osmng");
+	"osmng_installkernel"    usebundle =>    openstack_installkernel;
+	"osmng_installpkgs"     usebundle =>    installpkgs("osmng");
+	"osmng_interfaces"    usebundle =>    openstack_interfaces_osmng;
+    "osmng_hostsconf"    usebundle =>    hostsconf;
+	"osmng_ntp"    usebundle =>    ntp;
+	"osmng_locale"    usebundle =>    locale;
+	"osmng_timezone"    usebundle =>    timezone;
+    "osmng_syslogconf"    usebundle =>    syslogconf;
+    "osmng_ssh_conf"    usebundle =>    ssh_conf;
+    "osmng_postfixconf"    usebundle =>    postfixconf;
+	"osmng_setup_copy_passwords"    usebundle =>    osmng_setup_copy_passwords;
+	"osmng_setup_generate_passwords"    usebundle =>    osmng_setup_generate_passwords;
+	"osmng_setup_cfengine"    usebundle =>    osmng_setup_cfengine;
+	"osmng_setup_rabbit"    usebundle =>    osmng_setup_rabbit;
+	"osmng_setup_mysql"     usebundle =>    osmng_setup_mysql;
+	"osmng_setup_memcached"     usebundle =>    osmng_setup_memcached;
+	"osmng_setup_bashrc"  usebundle =>    osmng_setup_bashrc;
+    os_mysqld_installed::
+	"osmng_setup_keystone"  usebundle =>    osmng_setup_keystone;
+	"osmng_setup_nova"      usebundle =>    osmng_setup_nova;
+	"osmng_setup_glance"	usebundle =>    osmng_setup_glance;
+	"osmng_setup_cinder"	usebundle =>    osmng_setup_cinder;
+	"osmng_setup_quantum"	usebundle =>    osmng_setup_quantum;
+	"osmng_setup_horizon"	usebundle =>    osmng_setup_horizon;
+
+	"osmng_setup_getinfo"    usebundle =>    osmng_setup_getinfo;
+	"osmng_setup_quota"	usebundle =>    osmng_setup_quota;
+	"osmng_setup_quantum_networks"	usebundle =>    osmng_setup_quantum_networks;
+    cinder_scheduler_ok.cinder_volume_ok.nova_conductor_ok.nova_scheduler_ok.nova_consoleauth_ok.nova_compute_ok.quantum_l3_agent_ok.quantum_dhcp_agent_ok.quantum_openvswitch_agent_ok::
+	"osmng_setup_cinder_types"	usebundle =>    osmng_setup_cinder_types;
+	"osmng_setup_ubuntu_minimal_image"        usebundle =>    osmng_setup_ubuntu_minimal_image("$(def.cindershares_for_vpsroot)");
+
+    ## logical infrastructure boot
+	"os_main"        usebundle =>    os_main;
+
+}

@@ -1,0 +1,201 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+###############################################################################
+#
+#
+#
+###############################################################################
+
+bundle agent os_config
+{
+	vars:
+	# some pkgs
+	        "pkgs[ubuntu][list]"    slist   =>  {   "prips", "ipcalc" };
+	        "pkgs[ubuntu][repo]"    string  =>  "";
+	        "pkgs[ubuntu][key]"     string  =>  "";
+
+}
+
+# do not edit below this line
+bundle agent os_flavor(vmtype)
+{
+    classes:
+        "flavor_not_exist_$(vmtype)"          not =>  isvariable("os_cfengine.flavor_$(vmtype)");
+        "flavor_not_valid_cpu_$(vmtype)"    not => strcmp("$(os_cfengine.flavor_$(vmtype)_cpu)","$(def.vmdefault[$(vmtype)][flavor][cpu])");
+        "flavor_not_valid_mem_$(vmtype)"    not => strcmp("$(os_cfengine.flavor_$(vmtype)_mem)","$(def.vmdefault[$(vmtype)][flavor][mem])");
+
+	commands:
+        "/root/bin/os_cfengine flavor_create_or_update $(vmtype) $(def.vmdefault[$(vmtype)][flavor][cpu]) $(def.vmdefault[$(vmtype)][flavor][ram])"
+        ifvarclass => or("flavor_not_exist_$(vmtype)","flavor_not_valid_cpu_$(vmtype)","flavor_not_valid_mem_$(vmtype)");
+}
+
+bundle agent os_root_volume(vmtype)
+{
+	vars:
+		"names_$(vmtype)"	slist => splitstring(execresult("/usr/bin/seq -s, -f $(vmtype)-%g 1 $(def.vmdefault[$(vmtype)][count])|sed 's/_/-/g'","useshell"),",",2000);
+        "volume_types" slist   => {"@(def.cindershares_for_vpsroot)"};
+
+	classes:
+		"volume_exist_$(names_$(vmtype))"		expression => isvariable("os_cfengine.volume_name_to_id_$(names_$(vmtype))");
+		"volume_not_exist_$(names_$(vmtype))"		not => classify("volume_exist_$(names_$(vmtype))");
+        "snapshot_exist_$(volume_types)"        expression => isvariable("os_cfengine.snapshot_voltype_name_to_id_$(volume_types)_$(def.vmdefault[$(vmtype)][basesnapshot])");
+	commands:
+		"/root/bin/os_cfengine get_least_used_data_voltype $(names_$(vmtype)) $(def.vmdefault[$(vmtype)][root_voltype]) -- $(names_$(vmtype)) $(def.vmdefault[$(vmtype)][disksize])"
+        module => "true",
+        ifvarclass => and(classify("volume_not_exist_$(names_$(vmtype))"));
+
+		"/root/bin/os_cfengine exec /usr/bin/cinder create --snapshot-id $(os_cfengine.snapshot_voltype_name_to_id_$(os_cfengine.data_volume_on_type_name_$(names_$(vmtype)))_$(def.vmdefault[$(vmtype)][basesnapshot])) --display-name $(names_$(vmtype)) --volume-type $(os_cfengine.data_volume_on_type_name_$(names_$(vmtype))) $(def.vmdefault[$(vmtype)][disksize])"
+			ifvarclass => and(classify("volume_not_exist_$(names_$(vmtype))"),classify("snapshot_exist_$(os_cfengine.data_volume_on_type_name_$(names_$(vmtype)))"));
+
+}
+
+bundle agent os_data_volume(vmtype)
+{
+	vars:
+		"names_$(vmtype)"	slist => splitstring(execresult("/usr/bin/seq -s, -f $(vmtype)-%g 1 $(def.vmdefault[$(vmtype)][count])|sed 's/_/-/g'","useshell"),",",2000);
+        "volume_types" slist   => {"@(def.cindershares_for_vpsroot)"};
+
+	classes:
+        "has_data_volume_$(names_$(vmtype))"        expression => isvariable("def.vmdefault[$(vmtype)][data_voltype]");
+		"data_volume_exist_$(names_$(vmtype))"		expression => isvariable("os_cfengine.volume_name_to_id_data-$(names_$(vmtype))");
+		"data_volume_not_exist_$(names_$(vmtype))"		not => classify("data_volume_exist-$(names_$(vmtype))");
+
+	commands:
+		"/root/bin/os_cfengine get_least_used_data_voltype $(names_$(vmtype)) $(def.vmdefault[$(vmtype)][data_voltype]) -- $(names_$(vmtype)) $(def.vmdefault[$(vmtype)][data_disksize])"
+            module => "true",
+            ifvarclass => classify("has_data_volume_$(names_$(vmtype))");
+
+        "/root/bin/os_cfengine exec /usr/bin/cinder create --display-name data-$(names_$(vmtype)) --volume-type $(os_cfengine.data_volume_on_type_name_$(names_$(vmtype))) $(def.vmdefault[$(vmtype)][data_disksize])"
+            ifvarclass => and(classify("has_data_volume_$(names_$(vmtype))"),classify("data_volume_not_exist_$(names_$(vmtype))"));
+}
+
+bundle agent os_compute(vmtype)
+{
+	vars:
+		"names_$(vmtype)"	slist => splitstring(execresult("/usr/bin/seq -s, -f $(vmtype)-%g 1 $(def.vmdefault[$(vmtype)][count])|sed 's/_/-/g'","useshell"),",",2000);
+
+	classes:
+		"exist_$(names_$(vmtype))"                      expression  => isvariable("os_cfengine.nova_name_all_$(names_$(vmtype))");
+		"not_exist_$(names_$(vmtype))"                  not         => classify("exist_$(names_$(vmtype))");
+		"suspended_$(names_$(vmtype))"                  expression  => isvariable("os_cfengine.nova_name_suspended_$(names_$(vmtype))");
+		"paused_$(names_$(vmtype))"                     expression  => isvariable("os_cfengine.nova_name_paused_$(names_$(vmtype))");
+		"shutoff_$(names_$(vmtype))"                    expression  => isvariable("os_cfengine.nova_name_shutoff_$(names_$(vmtype))");
+		"volume_available_$(names_$(vmtype))"           expression  => isvariable("os_cfengine.cinder_volume_name_available_$(names_$(vmtype))");
+        "has_data_volume_$(names_$(vmtype))"            expression  => isvariable("def.vmdefault[$(vmtype)][data_voltype]");
+		"has_data_volume_available_$(names_$(vmtype))"  expression  => isvariable("os_cfengine.cinder_volume_name_available_data-$(names_$(vmtype))");
+
+		"has_ext_net_$(names_$(vmtype))"		expression	=> isvariable("os_cfengine.ext_ip_$(names_$(vmtype))");
+		"has_not_ext_net_$(names_$(vmtype))"		not => classify("has_ext_net_$(names_$(vmtype))");
+
+		"has_stor_net_$(names_$(vmtype))"		expression	=> isvariable("os_cfengine.stor_ip_$(names_$(vmtype))");
+		"has_not_stor_net_$(names_$(vmtype))"		not => classify("has_stor_net_$(names_$(vmtype))");
+
+        "boot_with_ext_net_$(names_$(vmtype))" and => { classify("not_exist_$(names_$(vmtype))"),classify("volume_available_$(names_$(vmtype))"),classify("has_ext_net_$(names_$(vmtype))"),classify("has_not_stor_net_$(names_$(vmtype))") };
+        "boot_with_int_net_$(names_$(vmtype))" and => { classify("not_exist_$(names_$(vmtype))"),classify("volume_available_$(names_$(vmtype))"),classify("has_not_ext_net_$(names_$(vmtype))"), classify("has_not_stor_net_$(names_$(vmtype))") };
+
+        ## to iste co 2 riadky vyssie len storage network naviac
+        "boot_with_ext_stor_net_$(names_$(vmtype))" and => { classify("not_exist_$(names_$(vmtype))"),classify("volume_available_$(names_$(vmtype))"),classify("has_ext_net_$(names_$(vmtype))"),classify("has_stor_net_$(names_$(vmtype))") };
+        "boot_with_int_stor_net_$(names_$(vmtype))" and => { classify("not_exist_$(names_$(vmtype))"),classify("volume_available_$(names_$(vmtype))"),classify("has_not_ext_net_$(names_$(vmtype))"),classify("has_stor_net_$(names_$(vmtype))") };
+
+	commands:
+#		"/bin/echo /usr/bin/nova resume $(names_$(vmtype))"
+#			ifvarclass => "exist_$(names_$(vmtype)).suspended_$(names_$(vmtype))";
+#
+#		"/bin/echo /usr/bin/nova unpause $(names_$(vmtype))"
+#			ifvarclass => "exist_$(names_$(vmtype)).paused_$(names_$(vmtype))";
+#
+#		"/bin/echo /usr/bin/nova start $(names_$(vmtype))"
+#			ifvarclass => "exist_$(names_$(vmtype)).shutoff_$(names_$(vmtype))";
+
+        ## get availability-zone parameter if scheduler=rr
+		"/root/bin/os_cfengine get_boot_node_for_instance $(names_$(vmtype)) $(def.vmdefault[$(vmtype)][schedule])"
+            module => "true";
+
+        ## get data volume parameter
+		"/root/bin/os_cfengine get_data_volume_parameter $(names_$(vmtype)) $(def.vmdefault[$(vmtype)][data_disksize])"
+            module => "true";
+
+		## generate /etc/network/interfaces when boot with external net
+		"cat /var/cfengine/inputs/configfiles/v1/openstack-provision/interfaces-template-ext | sed 's/\${openstack_provision.public_ip}/$(os_cfengine.ext_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.public_netmask}/$(os_cfengine.ext_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.public_gw}/$(os_cfengine.ext_net_gw_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_ip}/$(os_cfengine.local_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_netmask}/$(os_cfengine.local_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.local_gw}/$(os_cfengine.local_net_gw_$(names_$(vmtype)))/' > /tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype)))"
+                	contain => in_shell,
+			ifvarclass => canonify("boot_with_ext_net_$(names_$(vmtype))");
+
+		## generate /etc/network/interfaces when boot with external+storage net
+		"cat /var/cfengine/inputs/configfiles/v1/openstack-provision/interfaces-template-ext-stor | sed 's/\${openstack_provision.public_ip}/$(os_cfengine.ext_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.public_netmask}/$(os_cfengine.ext_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.public_gw}/$(os_cfengine.ext_net_gw_$(names_$(vmtype)))/'| sed 's/\${openstack_provision.stor_ip}/$(os_cfengine.stor_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.stor_netmask}/$(os_cfengine.stor_net_netmask_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_ip}/$(os_cfengine.local_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_netmask}/$(os_cfengine.local_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.local_gw}/$(os_cfengine.local_net_gw_$(names_$(vmtype)))/' > /tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype)))"
+                	contain => in_shell,
+			ifvarclass => canonify("boot_with_ext_stor_net_$(names_$(vmtype))");
+
+#		## generate /etc/network/interfaces when boot with internal+storage net
+		"cat /var/cfengine/inputs/configfiles/v1/openstack-provision/interfaces-template-int-stor | sed 's/\${openstack_provision.public_ip}/$(os_cfengine.ext_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.public_netmask}/$(os_cfengine.ext_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.public_gw}/$(os_cfengine.ext_net_gw_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.stor_ip}/$(os_cfengine.stor_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.stor_netmask}/$(os_cfengine.stor_net_netmask_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_ip}/$(os_cfengine.local_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_netmask}/$(os_cfengine.local_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.local_gw}/$(os_cfengine.local_net_gw_$(names_$(vmtype)))/' > /tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype)))"
+                	contain => in_shell,
+			ifvarclass => canonify("boot_with_int_stor_net_$(names_$(vmtype))");
+
+#		## generate /etc/network/interfaces when boot with internal net
+		"cat /var/cfengine/inputs/configfiles/v1/openstack-provision/interfaces-template-int | sed 's/\${openstack_provision.local_ip}/$(os_cfengine.local_ip_$(names_$(vmtype)))/' | sed 's/\${openstack_provision.local_netmask}/$(os_cfengine.local_net_netmask_$(names_$(vmtype)))/'|sed 's/\${openstack_provision.local_gw}/$(os_cfengine.local_net_gw_$(names_$(vmtype)))/' > /tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype)))"
+                	contain => in_shell,
+			ifvarclass => canonify("boot_with_int_net_$(names_$(vmtype))");
+
+
+
+
+        ## boot with int+ext net
+		"/root/bin/os_cfengine exec /usr/bin/nova boot --flavor $(vmtype) --block-device-mapping vda=$(os_cfengine.volume_name_to_id_$(names_$(vmtype))):::0 --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.local_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.local_ip_$(names_$(vmtype))) --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.ext_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.ext_ip_$(names_$(vmtype))) --config-drive=true --file /etc/network/interfaces=/tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype))) --user-data /var/cfengine/inputs/configfiles/v1/openstack-provision/user-data.script $(os_cfengine.data_volume_parameter_$(names_$(vmtype))) $(os_cfengine.availability_zone_$(names_$(vmtype))) $(names_$(vmtype))" 
+			ifvarclass => canonify("boot_with_ext_net_$(names_$(vmtype))");
+
+		## boot with int net
+		"/root/bin/os_cfengine exec /usr/bin/nova boot --flavor $(vmtype) --block-device-mapping vda=$(os_cfengine.volume_name_to_id_$(names_$(vmtype))):::0 --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.local_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.local_ip_$(names_$(vmtype))) --config-drive=true --file /etc/network/interfaces=/tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype))) --user-data /var/cfengine/inputs/configfiles/v1/openstack-provision/user-data.script $(os_cfengine.data_volume_parameter_$(names_$(vmtype))) $(os_cfengine.availability_zone_$(names_$(vmtype))) $(names_$(vmtype))" 
+			ifvarclass => canonify("boot_with_int_net_$(names_$(vmtype))");
+
+        ## boot with int+ext+stor net
+		"/root/bin/os_cfengine exec /usr/bin/nova boot --flavor $(vmtype) --block-device-mapping vda=$(os_cfengine.volume_name_to_id_$(names_$(vmtype))):::0 --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.local_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.local_ip_$(names_$(vmtype))) --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.ext_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.ext_ip_$(names_$(vmtype))) --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.stor_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.stor_ip_$(names_$(vmtype))) --config-drive=true --file /etc/network/interfaces=/tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype))) --user-data /var/cfengine/inputs/configfiles/v1/openstack-provision/user-data.script $(os_cfengine.data_volume_parameter_$(names_$(vmtype))) $(os_cfengine.availability_zone_$(names_$(vmtype))) $(names_$(vmtype))" 
+			ifvarclass => canonify("boot_with_ext_stor_net_$(names_$(vmtype))");
+
+		## boot without int+stor net
+		"/root/bin/os_cfengine exec /usr/bin/nova boot --flavor $(vmtype) --block-device-mapping vda=$(os_cfengine.volume_name_to_id_$(names_$(vmtype))):::0 --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.local_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.local_ip_$(names_$(vmtype))) --nic net-id=$(os_cfengine.quantum_net_name_to_id_$(os_cfengine.stor_net_name_$(names_$(vmtype)))),v4-fixed-ip=$(os_cfengine.stor_ip_$(names_$(vmtype))) --config-drive=true --file /etc/network/interfaces=/tmp/interfaces-$(os_cfengine.local_ip_$(names_$(vmtype))) $(os_cfengine.data_volume_parameter_$(names_$(vmtype))) $(os_cfengine.availability_zone_$(names_$(vmtype))) $(names_$(vmtype))" 
+			ifvarclass => canonify("boot_with_int_stor_net_$(names_$(vmtype))");
+
+
+}
+
+bundle agent os_main
+{
+
+	vars:
+		"vmtype"		slist => getindices("def.vmdefault");
+
+	methods:
+		"os_config"	usebundle	=>	os_config;
+		"os_installrepo"     usebundle =>    installrepo("os");
+		"os_installpkgs"     usebundle =>    installpkgs("os");
+
+		# stuff
+		"os_setup"	usebundle	=>	os_setup;
+	
+		# get status from nova/cinder/quantum
+		"os_getinfo"	usebundle	=>	os_getinfo;
+
+		# check flavors
+		"os_flavor"	usebundle	=>	os_flavor("$(vmtype)");
+		# check volumes
+		"os_root_volume"	usebundle	=>	os_root_volume("$(vmtype)");
+        # create data volumes
+		"os_data_volume"	usebundle	=>	os_data_volume("$(vmtype)");
+		# check instances
+		"os_compute"	usebundle	=>	os_compute("$(vmtype)");
+}

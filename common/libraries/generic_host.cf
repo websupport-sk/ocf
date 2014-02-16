@@ -1,0 +1,190 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent generichost_config
+{
+	vars:
+    "generic_list_phy"      slist   =>  { "lldpd" };
+    "generic_list"          slist   =>  {
+                            "dstat",
+                            "at",
+                            "lsscsi",
+                            "tcpdump",
+                            "lsof",
+                            "pv",
+                            "strace",
+                            "iotop",
+                            "sysstat",
+                            "rsync",
+                            "screen",
+                            "psmisc"
+                            };
+    phy::
+	"pkgs[ubuntu][list]"	slist	=> { @(generic_list_phy),@(generic_list) };
+    !phy::
+	"pkgs[ubuntu][list]"	slist	=> { @(generic_list) };
+}
+
+bundle agent generichost
+{
+	methods:
+            "genericsetup"  usebundle   =>  generichost_config;
+            "aptnocache"    usebundle   =>  aptnocache;
+            !fai::
+                "aptproxy"      usebundle   =>  aptproxy;
+                "resolvconf"    usebundle   =>  resolvconf;
+            any::
+            "aptpin"        usebundle   =>  aptpin;
+            "hostsconf"     usebundle   =>  hostsconf;
+            "package"       usebundle   =>  installpkgs("generichost");
+            "cron"          usebundle   =>  generichost_cron;
+            "sysctl_conf"   usebundle   =>  generichost_sysctl;
+            "bash_prompt"   usebundle   =>  bash_prompt;
+            "kill_dhclient" usebundle   =>  generichost_kill_dhclient;
+            "kernel_update" usebundle   =>  generichost_kernel_update;
+            #!(fai|webadmin)::
+            #"runtmpfs"      usebundle   =>  generichost_runtmpfs;
+}
+
+bundle agent generichost_kill_dhclient
+{
+    processes:
+        "dhclient3" signals => { "term", "kill" },
+            handle => "kill_dhclient",
+            comment => "Term process or kill if term fails",
+            process_count => dhclient_banned;
+}
+
+body process_count dhclient_banned
+{
+    match_range => irange("0","0");
+}
+
+bundle agent generichost_sysctl
+{
+    files:
+            "/etc/sysctl.conf"
+                handle          =>  "sysctl.conf",
+                create          =>  "true",
+                perms           =>  mog("0640", "root", "root"),
+                edit_template   =>  "$(def.path[templates])/sysctl.conf",
+                edit_defaults   =>  empty,
+                classes         =>  if_repaired("sysctl_conf_altered");
+
+    commands:
+        sysctl_conf_altered::
+            "/sbin/sysctl -p"
+                handle		    => "sysctl_reload";
+}
+
+bundle agent generichost_cron
+{
+	processes:
+        "ntpd"
+            comment         =>  "If ntpd is running, do not run ntpdate",
+            restart_class   =>  "ntpd_isnot_running";
+
+    commands:
+        phy.ntpd_isnot_running.(Hr00|Hr12).Min00_05::
+            "$(def.path[ntpdate]) $(def.services[ntp])";
+}
+
+bundle agent generichost_kernel_update
+{
+    vars:
+        "pkgs"    slist   => { "linux-headers-3.8.0-35", "linux-headers-3.8.0-35-generic", "linux-image-3.8.0-35-generic" };
+
+    packages:
+        ubuntu.!phy::
+            "$(pkgs)"
+            package_policy          => "addupdate",
+            package_method          => apt_get_individual,
+            action  => log_verbose,
+            classes => if_repaired("$(pkgs)_wasinstalled");
+}
+
+bundle agent generichost_runtmpfs
+{
+    vars:
+        # FIXME: shouldn't this be in def.cf ?
+        "cfenginedir"   string  =>  "/var/cfengine/state";
+        "cfdirs"        slist   =>  { 
+                        #"outputs",
+                        #"masterfiles",
+                        "bin",
+                        "ppkeys",
+                        "share",
+                        #"inputs",
+                        "modules",
+                        "lib",
+                        "lastseen",
+                        "reports",
+                        #"state" 
+                        };
+        "cfdirsempty"   slist   =>  {
+                        "outputs",
+                        "masterfiles",
+                        "inputs",
+                        "state",
+                        };
+    files:
+        "/etc/fstab"
+            comment         =>  "Remove bind entry for /var/cfengine/state from fstab",
+            handle          =>  "cfengine_rem_mount_bind",
+            edit_defaults   =>  std_defs,
+            edit_line       =>  delete_lines_matching(".*/var/cfengine/state.*"),
+            perms           =>  mog("700","root","root");
+
+        "/run/cfengine/."
+            comment     =>  "CFEngine3 state files would be stored here",
+            create      =>  "true",
+            handle      =>  "cfengine_run_tmpfs",
+            perms       =>  mog("700","root","root");
+
+        "/var/cfstatic/."
+            comment     =>  "Directory for base installation of CFEngine3 without temp data",
+            create      =>  "true",
+            handle      =>  "var_cfengine_static",
+            perms       =>  mog("700","root","root");
+
+        "/etc/init.d/cfengine3"
+            comment         =>  "Patch init script with our init code",
+            handle          =>  "cfengine3_init_script_patch",
+            perms           =>  mog("700","root","root"),
+            copy_from       =>  local_cp("$(def.path[templates])/cfengine3/cfengine3.init"),
+            edit_defaults   =>  empty;
+
+        "/var/cfstatic/$(cfdirs)"
+            comment         =>  "Copy /var/cfengine/ to /var/cfstatic and create mount bind",
+            copy_from       =>  local_cp("/var/cfengine/$(cfdirs)"),
+            perms           =>  mog("700","root","root"),
+            depth_search    =>  recurse("inf"),
+            file_select     =>  all;
+
+        "/var/cfstatic/$(cfdirsempty)/."
+            comment         =>  "Create empty directories",
+            create          =>  "true",
+            handle          =>  "var_cfengine_static_empty",
+            perms           =>  mog("750","root","root");
+
+    commands:
+            "/bin/echo /etc/init.d/cfengine3 stop| /usr/bin/at now + 11 min"
+                contain => in_shell;
+            "/bin/echo \"unset http_proxy HTTP_PROXY https_proxy HTTPS_PROXY ftp_proxy FTP_PROXY no_proxy NO_PROXY;/etc/init.d/cfengine3 start\" | /usr/bin/at now + 12 min"
+                contain => in_shell;
+}
+

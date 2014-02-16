@@ -1,0 +1,51 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent ntp
+{
+    methods:
+        "package"    usebundle => installpkg("ntp");
+
+    files:
+        "$(def.path[ntpconf])"
+            handle          => "ntp.conf",
+            create          => "true",
+            perms           => mog("0644", "root", "root"),
+            edit_line       => ntpstr,
+            edit_defaults   => empty,
+            classes         => if_repaired("ntp_restart");
+    commands:
+        ntp_restart::
+            "/etc/init.d/ntp restart";
+}
+
+bundle edit_line ntpstr
+{
+    insert_lines:
+    "driftfile $(def.ntp[conf][driftfile])";
+    "statsdir $(def.ntp[conf][statsdir])";
+    "statistics loopstats peerstats clockstats";
+    "filegen loopstats file loopstats type day enable";
+    "filegen peerstats file peerstats type day enable";
+    "filegen clockstats file clockstats type day enable";
+    "server  $(def.ntp[conf][server])";
+    "restrict -4 default kod notrap nomodify nopeer noquery";
+    "restrict -6 default kod notrap nomodify nopeer noquery";
+    "restrict 127.0.0.1";
+    "restrict ::1";
+    "restrict 10.0.0.0 mask 255.0.0.0";
+}

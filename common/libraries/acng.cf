@@ -1,0 +1,131 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent acng
+{
+    files:
+        fai::
+            "$(def.path[acngroot])/acng.conf"
+                handle          => "acng.conf",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => acngcnf,
+                edit_defaults   => empty,
+                classes         => if_repaired("acng_restart");
+ 
+            "$(def.path[acngroot])/security.conf"
+                handle          => "security.conf",
+                create          => "true",
+                perms           => mog("0600", "apt-cacher-ng", "apt-cacher-ng"),
+                edit_line       => securitycnf,
+                edit_defaults   => empty,
+                classes         => if_repaired("acng_restart");
+
+            "$(def.path[acngroot])/backends_debian"
+                handle          => "backends_debian",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => backends_debian_str,
+                edit_defaults   => empty,
+                classes         => if_repaired("acng_restart");
+
+            "$(def.path[acngroot])/backends_debvol"
+                handle          => "backends_debvol",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => backends_debvol_str,
+                edit_defaults   => empty,
+                classes         => if_repaired("acng_restart");
+
+            "$(def.path[acngroot])/backends_ubuntu"
+                handle          => "backends_ubuntu",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => backends_ubuntu_str,
+                edit_defaults   => empty,
+                classes         => if_repaired("acng_restart");
+
+            "/etc/security/limits.d/acng_limits.conf"
+                handle          => "acng_limits_conf",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => acng_process_limits,
+                edit_defaults   => empty,
+                classes         => if_repaired("acng_restart");
+
+    methods:
+        fai::
+            "package" usebundle => installpkg("apt-cacher-ng");
+
+    processes:
+        "/usr/sbin/apt-cacher-ng"
+            handle          => "run_acng",
+            comment         => "Promise that apt-cacher-ng is running.",
+            restart_class   => "acng_start";
+
+    commands:
+        fai.acng_restart::
+            "/etc/init.d/apt-cacher-ng restart";
+
+        fai.acng_start::
+            "/etc/init.d/apt-cacher-ng start";
+}
+
+bundle edit_line acngcnf
+{
+        insert_lines:
+        "CacheDir: $(def.acng[conf][cachedir])";
+        "LogDir: $(def.acng[conf][logdir])";
+        "Port: $(def.acng[conf][port])";
+        "BindAddress: $(def.acng[conf][binds])";
+	"Remap-debrep: file:deb_mirror*.gz /debian ; file:backends_debian";
+	"Remap-uburep: file:ubuntu_mirrors /ubuntu ; file:backends_ubuntu";
+	"Remap-debvol: file:debvol_mirror*.gz /debian-volatile ; file:backends_debvol";
+	"ReportPage: acng-report.html";
+        "PfilePattern = .*(\.d?deb|\.rpm|\.key|\.drpm|\.cdiff|\.cvd|\.dsc|\.tar(\.gz|\.bz2|\.lzma|\.xz)(\.gpg)?|\.diff(\.gz|\.bz2|\.lzma|\.xz)|\.jigdo|\.template|changelog|copyright|\.udeb|\.debdelta|\.diff/.*\.gz|(Devel)?ReleaseAnnouncement(\?.*)?|[a-f0-9]+-(susedata|updateinfo|primary|deltainfo).xml.gz|fonts/(final/)?[a-z]+32.exe(\?download.*)?|/dists/.*/installer-[^/]+/[0-9][^/]+/images/.*)$";
+        "ExTreshold: $(def.acng[conf][treshold])";
+        "MaxStandbyConThreads: $(def.acng[conf][maxstandbythreads])";
+        "MaxConThreads: $(def.acng[conf][maxthreads])";
+}
+
+bundle edit_line acng_process_limits
+{
+    insert_lines:
+        "apt-cacher-ng  hard    nofile  16384";
+}
+
+bundle edit_line securitycnf
+{
+    insert_lines:
+        "#AdminAuth: mooma:moopa";
+}
+
+bundle edit_line backends_debian_str
+{
+    insert_lines:
+        "http://ftp.sk.debian.org/debian/";
+}
+bundle edit_line backends_debvol_str
+{
+    insert_lines:
+        "";
+}
+bundle edit_line backends_ubuntu_str
+{
+    insert_lines:
+        "http://sk.archive.ubuntu.com/ubuntu/";
+}

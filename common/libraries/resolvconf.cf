@@ -1,0 +1,67 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent resolvconf
+{
+    classes:
+        "resolvconf_exist"  expression  => fileexists("/sbin/resolvconf");
+        "unbound_installed" expression  => fileexists("/etc/init.d/unbound");
+        
+    files:
+        !unbound_installed::
+            "/etc/resolv.conf"
+                handle          => "resolv.conf",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => resolvstr_default,
+                edit_defaults   => empty,
+                classes         => if_repaired("resolv_conf_updated");
+        unbound_installed::
+            "/etc/resolv.conf"
+                handle          => "resolv.conf unbound",
+                create          => "true",
+                perms           => mog("0644", "root", "root"),
+                edit_line       => resolvstr_unbound,
+                edit_defaults   => empty,
+                classes         => if_repaired("resolv_conf_updated");
+
+    commands:
+        resolv_conf_updated.resolvconf_exist::
+            "/sbin/resolvconf --disable-updates";
+}
+
+bundle edit_line resolvstr_default
+{
+    insert_lines:
+        # network should be done more dynamic
+        monitor::
+            "nameserver 10.1.12.2";
+            "nameserver 8.8.8.8";
+            "search websupport.sk dc1front.fnt dc1nas.nas dc1servermng.sem dc1netmng.nm dc1storagemng.som";
+
+
+        !monitor::
+            "search dc1front.fnt dc1nas.nas dc1servermng.sem dc1netmng.nm dc1storagemng.som";
+            "nameserver $(def.services[ns])";
+}
+
+bundle edit_line resolvstr_unbound
+{
+    insert_lines:
+        "nameserver 127.0.0.1";
+        "nameserver 8.8.8.8";
+}

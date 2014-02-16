@@ -1,0 +1,66 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+body common control
+{
+	inputs	=>	{	"../../../tests/default.cf.sub",	
+				"../../../common/v1/libraries/cfengine_stdlib.cf" };
+	bundlesequence	=>	{ default("$(this.promise_filename)") };
+}
+
+bundle agent init
+{
+       vars:
+
+                "actualout"                string =>      execresult("/root/bin/list_inst.sh","noshell");
+	files:
+		"$(G.testfile).actual"
+		create => "true",
+		edit_line	=> init_insert("$(actualout)"),
+		edit_defaults => init_empty;	
+}
+
+bundle edit_line init_insert(str)
+{
+	insert_lines:
+		"$(str)";
+}
+
+body edit_defaults init_empty
+{
+	empty_file_before_editing => "true";
+}
+
+bundle agent test
+{
+	reports:
+}
+
+bundle agent check
+{
+	vars:
+                "expectedreg"             string =>      "^([[:graph:]]+( |$))+";      
+		"actualout"		string	=>	execresult("/bin/cat $(G.testfile).actual","noshell");
+	classes:
+		"match"	expression => regcmp("$(expectedreg)","$(actualout)");
+	reports:
+		match::
+		"$(this.promise_filename) Pass";
+		!match::
+		"$(this.promise_filename) FAIL";
+}

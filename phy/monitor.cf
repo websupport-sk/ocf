@@ -1,0 +1,49 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+###############################################################################
+#
+# setup of monitor provisioning server 
+#
+###############################################################################
+
+bundle agent monitor_config
+{
+    vars:
+        "pkgs[ubuntu][list]"    slist   => {
+                                "lsscsi"
+                                };
+        "pkgs[zabbix][list]"    slist   =>  {
+                                "zabbix-server-mysql",
+                                "zabbix-frontend-php"
+                                };
+        "pkgs[zabbix][repo]"    string  =>  "deb http://repo.zabbix.com/zabbix/2.2/ubuntu precise main";
+        "pkgs[zabbix][key]"     string  =>  "http://repo.zabbix.com/zabbix-official-repo.key";
+
+}
+
+bundle agent monitor_main
+{
+    methods:
+        "monitor_config"        usebundle   =>  monitor_config;
+        "monitor_installrepo"   usebundle   =>  installrepo("monitor");
+        "monitor_installpkgs"   usebundle   =>  installpkgs("monitor");
+        "monitor_netint"        usebundle   =>  fai_netinterfaces("monitor");
+        "monitor_postfix"       usebundle   =>  postfixconf_satellite;
+        "monitor_timezone"      usebundle   =>  timezone;
+}

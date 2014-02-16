@@ -1,0 +1,700 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+###############################################################################
+#
+#   fai.cf - selfdefined fai server
+#
+#   Author: Tomas Corej <tomas.corej@websupport.sk>     
+#
+###############################################################################
+
+# TODO: create nobody group in nfsroot
+# TODO: remove 'disk' group check on /dev/sd* in fai-disk-info
+# TODO: vmlinuz is not copied to /srv/tftp/fai from nfsroot
+
+bundle agent fai_config
+{
+    vars:
+        "fai[path]"             string  =>  "/etc/fai";
+        "fai[config]"           string  =>  "/srv/fai/config";
+        "fai[nfsroot]"          string  =>  "/srv/fai/nfsroot";
+        "fai[chboot]"           string  =>  "/usr/sbin/fai-chboot";
+        "fai[setuproot]"        string  =>  "/usr/sbin/fai-setup";
+        "fai[nfsrootpkgs]"      string  =>  "aptitude nfs-common fai-nfsroot module-init-tools ssh rdate lshw rpcbind rsync lftp less dump reiserfsprogs e2fsprogs usbutils host hwinfo psmisc pciutils hdparm smartmontools parted mdadm lvm2 dnsutils ntpdate dosfstools xfsprogs xfsdump procinfo numactl dialog console-tools console-common iproute udev subversion xz-utils vlan cupt firmware-bnx2 firmware-bnx2x dracut dracut-network live-boot- live-boot-initramfs-tools-";
+        "fai[kernel]"           string  =>  "vmlinuz-3.2.0-4-amd64";
+        "fai[initrd]"           string  =>  "initrd.img-3.2.0-4-amd64";
+
+        # in this array has to be stored value for debootstrap
+        "templates[OS_UBUNTU_1204_X64]"         string  =>  "precise";
+        "templates[OS_UBUNTU_1204_X64_BLADE]"   string  =>  "precise";
+
+        "pkgs[debian][list]"    slist   =>  {
+                        "bind9",
+                        "isc-dhcp-server",
+                        "mysql-server",
+                        "dbconfig-common",
+                        "tftpd-hpa",
+                        "nfs-kernel-server",
+                        "nfs-common",
+                        "debootstrap",
+                        "libnss-db",
+                        "gawk",
+                        "apg",
+                        "apt-cacher-ng",
+                        "dnsutils",
+                        "heirloom-mailx",
+                        "tcpdump"
+                    };
+
+        "pkgs[fai][list]"       slist   =>  {
+                        "fai-server",
+                        "fai-doc",
+                        "fai-setup-storage",
+                        "fai-quickstart",
+                        };
+        "pkgs[fai][repo]"       string  =>  "deb http://fai-project.org/download wheezy koeln";
+        "pkgs[fai][key]"        string  =>  "http://fai-project.org/download/AB9B66FD.asc";
+
+# FIXME: fai is ubuntu now, is this still needed ?
+#        "pkgs[backports][list]" slist   =>  {
+#                        "zabbix-proxy-mysql",
+#                        "zabbix-agent",
+#                    };
+#        "pkgs[backports][repo]" string  =>  "deb http://ftp.sk.debian.org/debian/ wheezy-backports main non-free contrib";
+#        "pkgs[backports][key]"  string  =>  "http://ftp.debian.org/debian/dists/wheezy-backports/Release.gpg";
+
+        "pkgs[cfengine][list]"  slist   =>  {
+                                        "cfengine-community",
+                                        };
+        "pkgs[cfengine][repo]"  string  =>  "deb http://cfengine.com/pub/apt precise main";
+        "pkgs[cfengine][key]"   string  =>  "http://cfengine.com/pub/gpg.key";
+
+        "pkgs[websupport][repo]"        string  => "deb http://repo.websupport.sk/ubuntu precise main";
+        "pkgs[websupport][key]"         string  => "http://repo.websupport.sk/debian/pub.txt";
+        37_9_168_59::
+        "pkgs[websupport][list]"        slist   => {
+                                            "rum",
+                                            "qemu",
+                                            "libvirt-bin"
+                                            };
+        !37_9_168_59::
+        "pkgs[websupport][list]"        slist   => {
+                                            "rum",
+                                            };
+
+        "rumstrconf"            slist => {
+            "rummysql40:-s tcp:0.0.0.0:3305 -s sock:/tmp/mysql.sock -d tcp:10.20.0.180:3306 -m tcp:localhost:666 -b",
+            "rummysql41:-s tcp:0.0.0.0:3307 -s sock:/tmp/mysql41.sock -d tcp:195.210.29.30:3307 -m tcp:localhost:667 -b",
+            "rummysql50:-s tcp:0.0.0.0:3308 -s sock:/tmp/mysql50.sock -d tcp:195.210.29.26:3308 -m tcp:localhost:669 -M /run/cdb/mysql50.cdb -b",
+            "rummysql51:-s tcp:0.0.0.0:3309 -s sock:/tmp/mysql51.sock -d tcp:195.210.29.46:3306 -m tcp:localhost:670 -M /run/cdb/mysql51.cdb -b",
+            "rummysql55:-s tcp:0.0.0.0:3310 -s sock:/tmp/mariadb55.sock -d tcp:10.20.0.131:3306 -m tcp:localhost:671 -M /run/cdb/mysql55.cdb -b",
+            "rummysql50b:-s sock:/tmp/mysql50b.sock -d tcp:195.210.29.28:3308 -b",
+            "rumpgsql:-s tcp:0.0.0.0:5432 -s sock:/tmp/.s.PGSQL.5432 -d tcp:195.210.29.29:5432 -m tcp:localhost:668 -b"
+        };
+}
+
+bundle agent fai_main
+{
+    vars:
+        "host"              slist       =>  getindices("phy_hosts.phy");
+    classes:
+        "salt_noconfig"     expression  =>  "any";
+
+    files:
+        "/etc/salt-ws.conf"
+            handle          =>      "salt-ws.conf.fai",
+            create          =>      "true",
+            perms           =>      mog("0700","root","root"),
+            comment         =>      "Configuring salt-ws",
+            edit_defaults   =>      empty,
+            edit_template   =>      "$(def.path[templates])/salt/salt-ws.conf.fai";
+
+        "/root/bin/."
+            handle          =>      "Backup utils on fai",
+            create          =>      "true",
+            perms           =>      mog("0700","root","root"),
+            comment         =>      "Copying backuptools to /root/bin",
+            copy_from       =>      no_backup_dcp("$(def.path[templates])/backuptools"),
+            depth_search    =>      recurse("inf"),
+            file_select     =>      all;
+
+    methods:
+        fai::
+            "fai_config"        usebundle   =>  fai_config;
+            "fai_installrepo"   usebundle   =>  installrepo("fai");
+            # we have to install fai pkgs by one, because then classes will be set per one pkg
+            "fai_installpkg"    usebundle   =>  installpkg("$(fai_config.pkgs[fai][list])");
+            "fai_installpkgs"   usebundle   =>  installpkgs("fai");
+            "timezone"          usebundle   =>  timezone;
+            "fai_dhcpdconf"     usebundle   =>  dhcpdconf;
+            "fai_hostsconf"     usebundle   =>  hostsconf;
+            "fai_namedconf"     usebundle   =>  namedconf;
+            "fai_sshdconf"      usebundle   =>  sshdconf;
+            "fai_syslogconf"    usebundle   =>  syslogconf;
+            "fai_pxehost"       usebundle   =>  fai_pxehost("$(host)");
+            "fai_tftpd"         usebundle   =>  fai_tftpd;
+            "fai_ssh_conf"      usebundle   =>  ssh_conf;
+            "fai_nfsroot"       usebundle   =>  fai_nfsroot;
+        fai.fai_server_wasinstalled::
+            "fai_nfsroot_init"  usebundle   =>  fai_nfsroot_init;
+        fai.any::
+            "fai_tarballs"      usebundle   =>  fai_tarballs;
+            "fai_installinitrd" usebundle   =>  fai_installinitrd;
+            "fai_srvconfig"     usebundle   =>  fai_srvconfig;
+            "fai_os_passwords"  usebundle   =>  osmng_setup_really_generate_passwords;
+            "fai_mail_rbl_passwords"  usebundle   =>  fai_mail_rbl_passwords;
+            "fai_saltconf"      usebundle   =>  saltnoconf;
+            "fai_acng"          usebundle   =>  acng;
+        fai.!test_is::
+            "fai_scaledorpc"    usebundle   =>  scaledo_rpc("fai");
+            "fai_rumconf"       usebundle   =>  rumconf("fai");
+        fai::
+            "fai_locale"        usebundle   =>  locale;
+            # kopirovanie dnsbl dat zo spamhausu, ale iba na originalnom fai
+        fai.37_9_168_57::
+            "fai_dnsbl_sync"    usebundle   =>  fai_dnsbl_sync;
+        fai.37_9_168_59::
+            "fai_nfsmounts"     usebundle   =>  fai_nfsmounts;
+            "fai_postfix"       usebundle   =>  fai_postfix;
+            "fai_netinterfaces" usebundle   =>  fai_netinterfaces("fai");
+        fai.any.!test_is::
+            "fai_crontasks"     usebundle   =>  fai_crontasks;
+}
+
+bundle agent fai_nfsmounts
+{
+    vars:
+        "nt"        slist   =>  getindices("def.cindershares");
+    files:
+        "/mnt/it20/$(def.cindershares[$(nt)])/."
+            handle      => "fai_nfsmounts_create_mntpnt_for_$(def.cindershares[$(nt)])",
+            create      => "true";
+
+    storage:
+        "/mnt/it20/$(def.cindershares[netapp1])" mount    =>  nfs_p("wsnap1","/vol/$(def.cindershares[netapp1])","defaults,noatime,_netdev,nodev,noac,noauto,vers=3,ro");
+        "/mnt/it20/$(def.cindershares[netapp2])" mount    =>  nfs_p("wsnap2","/vol/$(def.cindershares[netapp2])","defaults,noatime,_netdev,nodev,noac,noauto,vers=3,ro");
+        "/mnt/backup_it20/"                      mount    =>  nfs_p("backup1.websupport.sk","/it20","defaults,noatime,_netdev,nodev,noac,noauto,vers=4,rw");
+}
+
+bundle agent fai_dnsbl_sync
+{
+    files:
+        "/var/lib/rbldns/."
+            handle      => "fai_dnsbl_sync /var/lib/rbldns/.",
+            create      => "true",
+            perms       => mog("0755", "root", "root");
+
+        "/var/lib/rbldns/spamhaus/."
+            handle      => "fai_dnsbl_sync /var/lib/rbldns/spamhaus/.",
+            create      => "true",
+            perms       => mog("0755", "root", "root");
+
+        "/var/lib/rbldns/psbl/."
+            handle      => "fai_dnsbl_sync /var/lib/rbldns/psbl/.",
+            create      => "true",
+            perms       => mog("0755", "root", "root");
+
+        "/root/bin/spamhaus-sync.sh"
+            handle          => "fai_dnsbl_sync /root/bin/spamhaus-sync.sh",
+            create          => "true",
+            perms           => mog("0755", "root", "root"),
+            edit_line       => expand_template("$(def.path[templates])/mail_rbl/tools/spamhaus-sync.sh"),
+            edit_defaults 	=> empty;
+
+    commands:
+            ## FIXME - toto sa ma vraj spustat kazdu minutu
+            "/root/bin/spamhaus-sync.sh";
+            "/usr/bin/rsync -z -p psbl-mirror.surriel.com::psbl/psbl.txt /var/lib/rbldns/psbl/psbl.txt";
+}
+
+# bundle na vygenerovanie id_rsa ktory sa zdiela medzi mail-rbl-1 a mail-rbl-2 na rsyncovanie spamhaus dat
+bundle agent fai_mail_rbl_passwords
+{
+    classes:
+        "mail_rbl_id_rsa" expression => isplain("$(def.path[mail_rbl_id_rsa])");
+
+    files:
+        #directory for passwords
+        "$(def.path[mail_rbl_passwords])."
+        handle      => "$(def.path[mail_rbl_passwords]).",
+        create      => "true",
+        perms       => mog("0700", "root", "root");
+        
+    commands:
+        "if [ ! -s $(def.path[mail_rbl_id_rsa_pub]) ]; then cd $(def.path[mail_rbl_passwords]);ssh-keygen -q -f id_rsa -N \"\" ; fi" 
+            contain => in_shell,
+            ifvarclass => "!mail_rbl_id_rsa";
+}
+
+# FIXME: duplicate code from common/libraries/postfixconf.cf
+
+bundle agent fai_postfix
+{
+    vars:
+        "syncfiles" slist   =>  {
+                        "hosts",
+                        "localtime",
+                        "nsswitch.conf",
+                        "resolv.conf",
+                        "services"
+                    };
+
+    files:
+        "/etc/postfix/main.cf"
+            handle          =>  "fai_postfix_satellite_main_cf",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  fai_poststr,
+            edit_defaults   =>  empty,
+            classes         =>  if_repaired("reload_postfix");
+
+        "$(def.path[mailnameconf])"
+            handle          =>  "fai_postfix_satellite_mailname",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  insert_lines("$(sys.fqhost)2.websupport.sk"),
+            edit_defaults   =>  empty,
+            classes         =>  if_repaired("reload_postfix");
+
+        "/etc/aliases"
+            handle          =>  "fai_postfix_satellite_mail_aliases",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  insert_lines("root:    admin.notify@websupport.sk"),
+            edit_defaults   =>  std_defs,
+            classes         =>  if_repaired("reload_aliases");
+
+        "/var/spool/postfix/etc/$(syncfiles)"
+            handle          =>  "fai_postfix_satelite_syncfiles",
+            comment         =>  "Config files in chroot that has to be in sync",
+            copy_from       =>  local_dcp("/etc/$(syncfiles)"),
+            perms           =>  mog("0644", "root", "root");
+
+
+   commands:
+        reload_postfix::
+            "/etc/init.d/postfix check"
+            classes         =>  default_retcodes("postfix_conf");
+
+        postfix_conf_ok::
+            "/etc/init.d/postfix reload";
+
+        reload_aliases::
+            "/usr/bin/newaliases";
+
+    reports:
+        postfix_conf_failed::
+            "postfix @ $(sys.host) reload failed";
+}
+
+bundle edit_line fai_poststr
+{
+    insert_lines:
+        "smtpd_banner = $(sys.fqhost) hostname ESMTP $mail_name (Debian/GNU)";
+        "biff = no";
+        "append_dot_mydomain = yes";
+        "readme_directory = no";
+        "smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem";
+        "smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key";
+        "smtpd_use_tls=yes";
+        "smtpd_tls_session_cache_database = btree:/smtpd_scache";
+        "smtp_tls_session_cache_database = btree:/smtp_scache";
+        "alias_maps = hash:/etc/aliases";
+        "alias_database = hash:/etc/aliases";
+        "myorigin = /etc/mailname";
+        "mydestination = $(sys.fqhost), $(sys.host) , localhost, localhost.localdomain, localhost";
+        "relay_domains =  $mydestination, websupport.sk, netapp.com, visionit.sk, dc1front.fnt, localdomain";
+        "mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128 10.0.0.0/8";
+        "mailbox_size_limit = 0";
+        "recipient_delimiter =";
+        "inet_interfaces = all";
+        "inet_protocols = all";
+        "notify_classes = bounce, delay, policy, protocol, resource, software";
+        "error_notice_recipient = admin.notify@websupport.sk";
+
+}
+
+
+bundle agent fai_netinterfaces(host)
+{
+    files:
+        debian|ubuntu::
+            "/etc/network/interfaces"
+                handle              =>  "$(host)_network_interfaces",
+                comment             =>  "Generator of /etc/network/interfaces from phyhosts entry for host $(host)",
+                create              =>  "true",
+                edit_defaults       =>  empty,
+                edit_line           =>  interfacesfile("$(host)");
+}
+
+bundle edit_line interfacesfile(host)
+{
+    vars:
+        "networks"              slist   =>  getindices("def.net");
+
+    classes:
+        "$(phy_hosts.phy[$(host)][$(networks)_ip])_exists"              expression  =>  "any";
+        "$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])_exists"       expression  =>  "any";
+        "$(host)_$(networks)_defaultgw_exists"                          expression  =>  strcmp("$(phy_hosts.phy[$(host)][$(networks)_defaultgw])","yes");
+        "$(host)_$(networks)_bronly"                                    expression  =>  strcmp("$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])","");
+        "$(def.net[$(networks)][router])_exists"                        expression  =>  "any";
+
+    insert_lines:
+        "auto lo";
+        "iface lo inet loopback";
+        "";
+        "auto eth0";
+        "iface eth0 inet manual";
+        "       bond-master bond0";
+        "       bond-primary eth0";
+        "";
+        "auto eth1";
+        "iface eth1 inet manual";
+        "       bond-master bond0";
+        "";
+        "auto bond0";
+        "iface bond0 inet manual";
+        "       slaves eth0 eth1";
+        "       bond-mode active-backup";
+        "       bond-miimon 100";
+        "       bond-downdelay 200";
+        "       bond-updelay 200";
+        "";
+# do not indent this block
+"auto vlan$(def.net[$(networks)][vlanid])
+iface vlan$(def.net[$(networks)][vlanid]) inet static
+        address $(phy_hosts.phy[$(host)][$(networks)_ip])
+        netmask $(def.net[$(networks)][mask])
+        vlan_raw_device bond0
+"
+        insert_type => "preserve_block",
+        ifvarclass  =>  and(not(canonify("$(host)_$(networks)_defaultgw_exists")),canonify("$(phy_hosts.phy[$(host)][$(networks)_ip])_exists"));
+
+# do not indent this block
+"auto vlan$(def.net[$(networks)][vlanid])
+iface vlan$(def.net[$(networks)][vlanid]) inet static
+        address $(phy_hosts.phy[$(host)][$(networks)_ip])
+        netmask $(def.net[$(networks)][mask])
+        gateway $(def.net[$(networks)][router])
+        vlan_raw_device bond0
+"
+        insert_type => "preserve_block",
+        ifvarclass  =>  and(canonify("$(host)_$(networks)_defaultgw_exists"),canonify("$(phy_hosts.phy[$(host)][$(networks)_ip])_exists"),canonify("$(def.net[$(networks)][router])_exists"));
+
+# do not indent this block
+"
+auto vlan$(def.net[$(networks)][vlanid])
+iface vlan$(def.net[$(networks)][vlanid]) inet manual 
+        vlan_raw_device bond0
+
+auto br$(def.net[$(networks)][vlanid])
+iface br$(def.net[$(networks)][vlanid]) inet static
+        address $(phy_hosts.phy[$(host)][bridge_$(networks)_ip])
+        netmask $(def.net[$(networks)][mask])
+        bridge_ports vlan$(def.net[$(networks)][vlanid])
+        bridge_stp off
+        bridge_fd 0
+        bridge_maxwait 0
+"
+        insert_type => "preserve_block",
+        ifvarclass  =>  and(not(canonify("$(host)_$(networks)_defaultgw_exists")),canonify("$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])_exists"),not(canonify("$(host)_$(networks)_bronly")));
+
+# do not indent this block
+"
+auto vlan$(def.net[$(networks)][vlanid])
+iface vlan$(def.net[$(networks)][vlanid]) inet manual 
+        vlan_raw_device bond0
+
+auto br$(def.net[$(networks)][vlanid])
+iface br$(def.net[$(networks)][vlanid]) inet static
+        address $(phy_hosts.phy[$(host)][bridge_$(networks)_ip])
+        netmask $(def.net[$(networks)][mask])
+        gateway $(def.net[$(networks)][router])
+        bridge_ports vlan$(def.net[$(networks)][vlanid])
+        bridge_stp off
+        bridge_fd 0
+        bridge_maxwait 0
+"
+        insert_type => "preserve_block",
+        ifvarclass  =>  and(canonify("$(host)_$(networks)_defaultgw_exists"),canonify("$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])_exists"),canonify("$(def.net[$(networks)][router])_exists"));
+
+# do not indent this block
+"
+auto vlan$(def.net[$(networks)][vlanid])
+iface vlan$(def.net[$(networks)][vlanid]) inet manual 
+        vlan_raw_device bond0
+
+auto br$(def.net[$(networks)][vlanid])
+iface br$(def.net[$(networks)][vlanid]) inet manual
+        bridge_ports vlan$(def.net[$(networks)][vlanid])
+        bridge_stp off
+        bridge_fd 0
+        bridge_maxwait 0
+        pre-up ifup vlan519
+"
+        insert_type => "preserve_block",
+        ifvarclass  =>  and(canonify("$(phy_hosts.phy[$(host)][bridge_$(networks)_ip])_exists"),canonify("$(host)_$(networks)_bronly"));
+}
+
+bundle agent fai_nfsroot
+{
+    files:
+        "$(fai_config.fai[path])/NFSROOT"
+            handle          =>  "fai_nfsroot_generator",
+            comment         =>  "Generating NFSROOT",
+            create          =>  "true",
+            edit_line       =>  insert_lines("PACKAGES: $(fai_config.fai[nfsrootpkgs])"),
+            edit_defaults   =>  empty;
+
+        "/etc/exports"
+            handle          =>  "fai_nfsroot_exports",
+            comment         =>  "exports",
+            create          =>  "true",
+            edit_line       =>  fai_nfs_exports,
+            classes         =>  if_repaired("exports_reload");
+    commands:
+        exports_reload::
+                "$(def.path[exportfs]) -a";
+}
+
+bundle agent fai_nfsroot_init
+{
+    vars:
+        "insttemp"      slist   =>  getindices("fai_config.templates");
+
+    files:
+        "/run/$(insttemp)/."
+                handle          =>  "fai_nfsroot_init $(insttemp)_install_template",
+                create          =>  "true",
+                perms           =>  mog("0755", "root", "root"),
+                comment         =>  "Create template directories",
+                classes         =>  if_ok("tmp_$(insttemp)");
+
+        "/run/$(insttemp)/etc/rc.local"
+                handle          =>  "bootstrap command",
+                create          =>  "true",
+                perms           =>  mog("0700", "root", "root"),
+                edit_line       =>  insert_lines("cf-agent -B cfmaster"),
+                edit_defaults   =>  empty;
+
+        "/run/$(insttemp)/etc/apt/sources.list.d/cfengine.list"
+                handle          =>  "fai repository list",
+                create          =>  "true",
+                perms           =>  mog("0600", "root", "root"),
+                edit_line       =>  insert_lines("$(fai_config.pkgs[cfengine][repo])"),
+                edit_defaults   =>  empty,
+                classes         =>  if_repaired("aptkeyinst");
+
+    commands:
+        "$(fai_config.fai[setuproot]) -e";
+        "$(def.path[chroot]) $(fai_config.fai[nfsroot]) /usr/bin/apt-get install initramfs-tools linux-image-amd64 firmware-bnx2 firmware-bnx2x";
+
+        "$(def.path[debootstrap]) --include=openssh-server,gnupg,wget $(fai_config.templates[$(insttemp)]) /run/$(insttemp)/"
+                    ifvarclass          =>  "tmp_$(insttemp)";
+        aptkeyinst::
+            "$(def.path[chroot]) /run/$(insttemp)/ $(def.path[wget]) -q -O /tmp/cfengine.pub $(fai_config.pkgs[cfengine][key])";
+            "$(def.path[chroot]) /run/$(insttemp)/ $(def.path[apt-key]) add /tmp/cfengine.pub";
+            "$(def.path[chroot]) /run/$(insttemp)/ /usr/bin/apt-get update";
+            "$(def.path[chroot]) /run/$(insttemp)/ /usr/bin/apt-get install cfengine-community";
+            "/bin/rm -f /run/$(insttemp)/tmp/cfengine.pub";
+
+}
+
+bundle agent fai_tarballs
+{
+    vars:
+        "insttemp"                  slist   =>  getindices("fai_config.templates");
+    classes:
+        "$(insttemp)_tarball"    expression =>  fileexists("$(fai_config.fai[config])/basefiles/$(insttemp).tar.gz");
+    commands:
+        "/bin/tar -czf $(fai_config.fai[config])/basefiles/$(insttemp).tar.gz /run/$(insttemp)"
+            ifvarclass  =>  "!$(insttemp)_tarball";
+}
+
+bundle edit_line fai_nfs_exports
+{
+    insert_lines:
+        "/srv/fai/nfsroot 10.0.0.0/8(async,rw,fsid=0,no_subtree_check,no_root_squash)";
+        "/srv/fai/config 10.0.0.0/8(async,ro,fsid=1,no_subtree_check,no_root_squash)";
+}
+
+bundle agent fai_pxehost(host)
+{
+    vars:
+        "chost"             string  =>  canonify("$(host)");
+        "$(chost)_pxefile"	string  =>  "$(def.path[tftpdpxe])/01-$($(chost)_macparts[1])-$($(chost)_macparts[2])-$($(chost)_macparts[3])-$($(chost)_macparts[4])-$($(chost)_macparts[5])-$($(chost)_macparts[6])";
+
+    classes:
+        "ok" expression => regextract(
+            "([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2}):([0-9A-Fa-f]{2})",
+            "$(phy_hosts.phy[$(host)][mac])",
+            "$(chost)_macparts"
+            );
+    files:
+        "$($(chost)_pxefile)"
+            handle          =>  "PXE_file_for_host_$($(chost)_pxefile)",
+            comment         =>  "PXE file generator for host",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_defaults   =>  empty,
+            edit_line       =>  fai_pxefile("$(host)"),
+            ifvarclass      =>  not(fileexists("$($(chost)_pxefile)"));
+}
+
+bundle edit_line fai_pxefile(pxehost)
+{
+    insert_lines:
+        "default fai-generated";
+        "label fai-generated";
+        "kernel $(fai_config.fai[kernel])";
+        "append initrd=$(fai_config.fai[initrd]) root=nfs:/srv/fai/nfsroot $(phy_hosts.phy[$(pxehost)][pxeextra]) rd.nfs.domain=localdomain hostname=$(pxehost) rw FAI_FLAGS=verbose,sshd,reboot FAI_CONFIG_SRC=nfs://$(def.services[faiserver])/srv/fai/config FAI_ACTION=install rd_NO_LUKS rd_NO_LVM rd_NO_MD rd_NO_DM";
+
+}
+
+bundle agent fai_tftpd
+{
+    files:
+        "$(def.path[tftpdconf])"
+            handle          =>  "fai_tftpd_config",
+            comment         =>  "tftpd setup on fai",
+            create          =>  "true",
+            edit_defaults   =>  empty,
+            edit_line       =>  fai_tftpdconf,
+            classes         =>  if_repaired("tftpd_reload");
+    commands:
+        tftpd_reload::
+            "$(def.path[tftpd]) restart";
+}
+
+bundle edit_line fai_tftpdconf
+{
+    classes:
+        "$(phy_hosts.phy[fai][dc1inst_ip])_exists"     expression  =>  "any";
+    insert_lines:
+        "TFTP_USERNAME=\"tftp\"";
+        "TFTP_DIRECTORY=\"/srv/tftp\"";
+        "TFTP_ADDRESS=\"$(phy_hosts.phy[fai][dc1inst_ip]):69\""
+            ifvarclass  =>  canonify("$(phy_hosts.phy[fai][dc1inst_ip])_exists");
+        "TFTP_OPTIONS=\"--secure\"";
+}
+
+bundle agent fai_srvconfig
+{
+
+    files:
+        fai_server_isinstalled::
+            "$(fai_config.fai[config])/class/50-host-classes"
+                handle          =>  "fai_srvconfig_host_classes_generator",
+                comment         =>  "Generator for 50-host-classes entries",
+                create          =>  "true",
+                edit_defaults   =>  empty,
+                perms           =>  mog("0755", "root", "root"),
+                edit_line       =>  fai_hostclasses;
+
+    methods:
+        "verifypkg" usebundle   =>  verifypkg("fai-server");
+}
+
+bundle edit_line fai_hostclasses
+{
+    vars:
+        "host"      slist   =>  getindices("phy_hosts.phy");
+    classes:
+        "$(phy_hosts.phy[$(host)][insttemp])_template"	expression	=> "any";
+    insert_lines:
+        "#!/bin/bash";
+        "case $HOSTNAME in";
+        "$(host)) echo \"BC_BASE $(phy_hosts.phy[$(host)][dlayout]) NW_DHCP $(phy_hosts.phy[$(host)][insttemp]) $(phy_hosts.phy[$(host)][faiclasses]) GRUB_PC\" ;;" ifvarclass => "$(phy_hosts.phy[$(host)][insttemp])_template";
+        "*) echo \"BC_BASE HDD_SINGLE NW_DHCP OS_UBUNTU_1204_X64 GRUB_PC\" ;;";
+        "esac";
+        "exit 0";
+}
+bundle agent fai_installinitrd
+{
+	classes:
+		"initrdexist"	expression	=>	fileexists("$(def.path[tftpdroot])/$(fai_config.fai[initrd])");
+	#files:
+	#	"$(fai_config.fai[nfsroot])/etc/initramfs-tools/initramfs.conf"		
+	#			handle  =>      "initrd_update_install",
+	#			comment =>      "initrd update and install",
+	#			create  =>      "true",
+	#			edit_defaults   => empty,
+	#			edit_line       => fai_initramfsconf,
+	#			classes		=> if_repaired("initramfsconf_repaired");
+
+	#	"$(fai_config.fai[nfsroot])/etc/initramfs-tools/modules"		
+	#			handle  =>      "modules_initramfs",
+	#			comment =>      "modules in initd",
+	#			create  =>      "true",
+	#			edit_defaults   => empty,
+	#			edit_line       => fai_modules,
+	#			classes		=> if_repaired("modules_repaired");
+	commands:
+		!initrdexist::
+		"$(def.path[debian][chroot]) $(fai_config.fai[nfsroot]) /usr/bin/dracut -a \"network nfs\" --add-drivers \"bnx2x crc32c nfsv3 nfsv4\" --force /boot/initrd.img-3.2.0-4-amd64 3.2.0-4-amd64";
+		"/bin/cp $(fai_config.fai[nfsroot])/boot/initrd* $(def.path[tftpdroot])/$(fai_config.fai[initrd])"
+	    	contain	=> shell;	
+		"/bin/chmod 644 $(def.path[tftpdroot])/initrd*"
+		contain => shell;
+
+}
+
+body contain shell
+{
+useshell => "true";
+}
+
+
+# FIXME: should be removed because we're using dracut and not initramfs-utils
+#bundle edit_line fai_initramfsconf
+#{
+#	insert_lines:
+#		"$(def.config_header)";
+#		"MODULES=netboot";
+#		"BUSYBOX=y";
+#		"COMPCACHE_SIZE=\"\"";
+#		"COMPRESS=gzip";
+#		"BOOT=nfs";
+#		"DEVICE=";
+#		"NFSROOT=auto";
+#}
+#
+#bundle edit_line fai_modules
+#{
+#	insert_lines:
+#		"$(def.config_header)";
+#		"bnx2x";
+#		"nfs";
+#		"nfsv3";
+#		"nfsv4";
+#}
+
+bundle agent fai_crontasks
+{
+   commands:
+        37_9_168_59.Hr00.Min40_45::
+                ". /root/.openstackrc && /root/bin/volbackup.py -n all_tenants"
+                    contain =>  in_shell,
+                    action  =>  if_elapsed("600");
+        (Day10|Day24).Hr08.Min00_05::
+                "$(def.path[wget]) -O/var/lib/misc/php_browscap.ini http://tempdownloads.browserscap.com/stream.asp?Full_PHP_BrowscapINI";
+        (Hr01|Hr05|Hr09|Hr13|Hr17|Hr21).Min00_05::
+                "$(def.path[acnginit]) restart"
+                contain =>  silent;
+}

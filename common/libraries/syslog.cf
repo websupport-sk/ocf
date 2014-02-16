@@ -1,0 +1,163 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent syslogconf
+{
+	methods:
+		"package"	usebundle =>	installpkg("rsyslog");
+        files:
+		"$(def.path[syslogconf])"
+			handle  => "syslog_conf",
+			create  => "true",
+			perms   => mog("0644", "root", "root"),
+			edit_line   => syslogstr,
+			edit_defaults => empty,
+			classes => if_repaired("syslogd_configtest");
+
+		"$(def.path[syslogdefault])"
+			handle  => "syslog_default",
+			create  => "true",
+			perms   => mog("0644", "root", "root"),
+			edit_line   => insert_lines("RSYSLOGD_OPTIONS=\"$(def.syslog[r_options])\""),
+			edit_defaults => empty,
+			classes => if_repaired("syslogd_configtest");
+
+	commands:
+		syslogd_configtest::
+			"/usr/sbin/rsyslogd $(def.syslog[r_options]) -N1"
+				handle		  => "syslogd_syntax_checked",
+				classes		 => default_retcodes("syslogd_config");
+
+		syslogd_config_ok::
+			"/usr/bin/service rsyslog restart"
+				depends_on	  => { "syslogd_syntax_checked" };
+				"/usr/bin/service rsyslog restart";
+}
+
+
+bundle edit_line syslogstr
+{
+        insert_lines:
+		"
+$ModLoad imuxsock
+$ModLoad imklog
+$ModLoad imfile
+$ModLoad imudp
+$UDPServerRun 514
+$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat
+$FileOwner root
+$FileGroup adm
+$FileCreateMode 0640
+$DirCreateMode 0755
+$Umask 0022
+$AddUnixListenSocket /var/spool/postfix/dev/log
+";
+
+!fai.!osmng.phyv1::
+
+"$InputFileName /var/log/cinder/cinder-volume.log
+$InputFileTag cinder:
+$InputFileStateFile stat-file-cinder
+$InputFileSeverity error
+$InputFileFacility local7
+$InputRunFileMonitor
+
+$InputFileName /var/log/nova/nova-compute.log
+$InputFileTag nova-compute:
+$InputFileStateFile stat-file-nova-c
+$InputFileSeverity error
+$InputFileFacility local7
+$InputRunFileMonitor
+
+$InputFileName /var/log/nova/nova-manage.log
+$InputFileTag nova-manage:
+$InputFileStateFile stat-file-nova-m
+$InputFileSeverity error
+$InputFileFacility local7
+$InputRunFileMonitor
+
+$InputFileName /var/log/quantum/openvswitch-agent.log
+$InputFileTag quantum:
+$InputFileStateFile stat-file-quantum
+$InputFileSeverity error
+$InputFileFacility local7
+$InputRunFileMonitor
+
+*.*            @10.1.12.5:514
+"
+    insert_type => "preserve_block";
+
+lb::
+    "
+$InputFileName /var/log/proftpd/xferlog
+$InputFileTag xfer-log:
+$InputFileStateFile stat-file-xfer
+$InputFileSeverity error
+$InputFileFacility local5
+$InputRunFileMonitor
+
+$InputFileName /var/log/proftpd/proftpd.log
+$InputFileTag ftp-log:
+$InputFileStateFile stat-file-ftp
+$InputFileSeverity error
+$InputFileFacility local5
+$InputRunFileMonitor
+
+$InputFileName /var/log/proftpd/sftp.log
+$InputFileTag sftp-log:
+$InputFileStateFile stat-file-sftp-log
+$InputFileSeverity error
+$InputFileFacility local5
+$InputRunFileMonitor
+    "
+    insert_type => "preserve_block";
+
+!phyv1::
+    "*.*            @10.10.10.12:514";
+
+any::
+		"
+##### Local
+auth,authpriv.*			/var/log/auth.log
+*.*;auth,authpriv,mail.none		-/var/log/syslog
+daemon.*			-/var/log/daemon.log
+kern.*				-/var/log/kern.log
+lpr.*				-/var/log/lpr.log
+mail.*				-/var/log/mail.log
+local0.*            -/var/log/mail.log
+user.*				-/var/log/user.log
+#mail.info			-/var/log/mail.info
+#mail.warn			-/var/log/mail.warn
+#mail.err			/var/log/mail.err
+#news.crit			/var/log/news/news.crit
+#news.err			/var/log/news/news.err
+#news.notice			-/var/log/news/news.notice
+
+*.=debug;\\
+	auth,authpriv.none;\\
+	news.none;mail.none	-/var/log/debug
+*.=info;*.=notice;*.=warn;\\
+	auth,authpriv.none;\\
+	cron,daemon.none;\\
+	mail,news.none		-/var/log/messages
+*.emerg				:omusrmsg:*
+#daemon.*;mail.*;\\
+#	news.err;\\
+#	*.=debug;*.=info;\\
+#	*.=notice;*.=warn	|/dev/xconsole
+";
+}

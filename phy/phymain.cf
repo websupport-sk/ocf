@@ -1,0 +1,126 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+###############################################################################
+#
+#
+#
+###############################################################################
+
+bundle agent phy_config
+{
+	vars:
+	debian::
+		"pkgs[cfengine][repo]"          string =>       "deb http://cfengine.com/pub/apt squeeze main";
+         "pkgs[cfengine][key]"           string =>       "http://cfengine.com/pub/gpg.key";
+		"pkgs[cfengine][list]"          slist =>        {
+                                                                "cfengine-community",
+                                                                };
+
+
+}
+
+bundle agent phy_main
+{
+    classes:
+       "blades_ioping"   or => { classmatch("bl[0-9]+_blc[0-9]")};
+
+    vars: 
+        !blades_ioping::
+            "zbx_pkglist" slist => { "cf_agent" }; 
+        blades_ioping::
+            "zbx_pkglist" slist => { "cf_agent","ioping","blades_netif_discovery" }; 
+    methods:
+# FIXME: ked spustime install baliku pred installrepo v oscompute/osnetwork tak sa nam nacachuje povodny zoznam balikov
+#   a nasledne sa budu instalovat stare verzie. Preto je upgrade cfenginu zatial vypnute.
+#   
+        phy.!monitor::
+            "phy_zabbix"  usebundle =>    zabbix_agent_conf;
+            "phy_zabbix"  usebundle =>    zabbix_conf_by_pkg("$(zbx_pkglist)");
+
+##            "phy_zabbix_agentdconf"  usebundle       =>      zabbix_conf_by_pkg("ioping");
+##	
+#            "phy_config"     	usebundle =>    phy_config;
+#            "phy_installrepo"     usebundle =>    installrepo("phy");
+#            "phy_installpkgs"     usebundle =>    installpkgs("phy");
+        fai::
+            "fai" usebundle => fai_main;
+        osmng::
+            "osmng" usebundle => osmng_main; 
+        logs::
+            "logs" usebundle => logs_main;
+        monitor::
+            "monitor"   usebundle   => monitor_main;
+        bl1_blc1::
+            "oscompute" usebundle => oscompute_main; 
+            "osnetwork" usebundle => osnetwork_main; 
+        bl2_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl3_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl4_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl5_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl6_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl7_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl8_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl9_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl10_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl11_blc1::
+            "oscompute" usebundle => oscompute_main; 
+        bl12_blc1::
+            "oscompute" usebundle => oscompute_main;
+        bl1_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl2_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl3_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl4_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl5_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl6_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl7_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl8_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl9_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl10_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl11_blc2::
+            "oscompute" usebundle => oscompute_main;
+        bl12_blc2::
+            "oscompute" usebundle => oscompute_main;
+
+        # test infra
+        test_compute1::
+            "osmng" usebundle => osmng_main; 
+        test_compute2::
+            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle => osnetwork_main; 
+
+}

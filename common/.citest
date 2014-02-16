@@ -1,0 +1,15 @@
+fai
+osmng
+lb_proxy_1
+apache24_php53_1
+apache22_php44_1
+apache24_php54_1
+apache24_php55_1
+apache22_php52_1
+memcached_session_1
+scaledo_uwsgi_api_1
+scaledo_apache24_php54_frontend_1
+db_mariadb55_1
+db_mysql50_1
+db_mysql51_1
+logs_1

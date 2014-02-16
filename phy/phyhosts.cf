@@ -1,0 +1,74 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+##############################################################################
+#
+#
+#
+###############################################################################
+
+bundle agent phy_hosts
+{
+	vars:
+        "phy[fai][mac]"                     string  =>  "aa:bb:cc:dd:ee:f0";
+        # very specific setup for now
+        "phy[fai][ip]"                              string  =>  "10.1.12.4";
+        "phy[fai][bridge_vlan2_ip]"                 string  =>  "37.9.168.59";
+        "phy[fai][vlan2_defaultgw]"                 string  =>  "yes";
+        "phy[fai][bridge_dc1netmng_ip]"             string  =>  "10.1.0.2";
+        "phy[fai][bridge_dc1servermng_ip]"          string  =>  "10.1.1.159";
+        "phy[fai][bridge_dc1storagemng_ip]"         string  =>  "10.1.2.3";
+        "phy[fai][bridge_dc1net_ip]"                string  =>  "10.1.8.9";
+        "phy[fai][bridge_vlan510_ip]"               string  =>  "";
+        "phy[fai][dc1inst_ip]"                      string  =>  "10.1.9.9";
+        "phy[fai][dc1nas_ip]"                       string  =>  "10.1.16.8";
+        "phy[fai][bridge_dc1front_ip]"              string  =>  "10.1.12.4";
+        "phy[fai][bridge_localnet0_ip]"             string  =>  "10.10.10.11";
+        "phy[fai][insttemp]"                string  =>  "OS_UBUNTU_1204_X64_BLADE";
+        "phy[fai][dlayout]"                 string  =>  "FAISERVER";
+        "phy[fai][faiclasses]"             	string  =>  "";
+        "phy[fai][pxeextra]"                string  =>  "ip=eth0:dhcp bootdev=eth0";
+
+#test infra
+	    "phy[osmng][mac]"			string =>	"aa:bb:cc:dd:ee:f1";
+    	"phy[osmng][ip]"			string =>	"10.1.12.201";
+        "phy[osmng][dc1front_vlanid]"	string =>	"2";
+        "phy[osmng][dc1front_ip]"		string =>	"10.1.12.201";
+        "phy[osmng][dc1nas_vlanid]"		string =>	"110";
+        "phy[osmng][dc1nasa_ip]"		string =>	"10.1.17.201";
+        "phy[osmng][dc1servermng_vlanid]"	string =>	"11";
+        "phy[osmng][dc1servermng_ip]"	string =>	"10.1.1.201";
+        "phy[osmng][insttemp]"		string =>	"OS_UBUNTU_1204_X64_BLADE";
+        "phy[osmng][dlayout]"		string =>	"HDD_SINGLE";
+        "phy[osmng][faiclasses]"            string =>       "";
+        "phy[osmng][pxeextra]"            	string =>       "vlan=vlan109:eth0 ip=vlan109:dhcp bootdev=vlan109";
+
+	    "phy[compute1][mac]"			string =>	"aa:bb:cc:dd:ee:f2";
+    	"phy[compute1][ip]"			string =>	"10.1.12.202";
+        "phy[compute1][dc1front_vlanid]"	string =>	"2";
+        "phy[compute1][dc1front_ip]"		string =>	"10.1.12.202";
+        "phy[compute1][dc1nas_vlanid]"		string =>	"110";
+        "phy[compute1][dc1nasa_ip]"		string =>	"10.1.17.202";
+        "phy[compute1][dc1servermng_vlanid]"	string =>	"11";
+        "phy[compute1][dc1servermng_ip]"	string =>	"10.1.1.202";
+        "phy[compute1][insttemp]"		string =>	"OS_UBUNTU_1204_X64_BLADE";
+        "phy[compute1][dlayout]"		string =>	"HDD_SINGLE";
+        "phy[compute1][faiclasses]"            string =>       "";
+        "phy[compute1][pxeextra]"            	string =>       "vlan=vlan109:eth0 ip=vlan109:dhcp bootdev=vlan109";
+
+}

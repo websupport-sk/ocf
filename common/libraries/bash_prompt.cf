@@ -1,0 +1,68 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent bash_prompt
+{
+	vars:
+        !test_is::
+            "str"   string => "\[\033[0;31m\](production)\[\033[00m\]",
+                    policy => "overridable";
+        test_is::
+            "str"   string => "\[\033[0;32m\](testing)\[\033[00m\]",
+                    policy => "overridable";
+        files:
+                debian::
+                        "/etc/profile.d/websupport.sh"
+                                delete          =>      tidy;
+
+                        "/etc/websupport.sh"
+                                handle          =>      "bash-prompt",
+                                create                  =>      "true",
+                                perms           =>      mog("0644","root","root"),
+                                comment         =>      "Configuring bash prompt",
+                                edit_defaults   =>      empty,
+                                edit_template   =>      "$(def.path[templates])/bash/websupport.sh";
+                        "/root/.bashrc"
+                                handle          =>      "bashrc stat",
+                                create          =>      "true",
+                                perms           =>      mog("0644","root","root"),
+                                edit_line       =>      bashprompt_line;
+}
+
+bundle edit_line bashprompt_line
+{
+    delete_lines:
+        "if [ -f /etc/profile.d/websupport.sh ]; then
+        . /etc/profile.d/websupport.sh
+        fi";
+        "unset WSSET
+        if [ -f /etc/websupport.sh ]; then
+        . /etc/websupport.sh
+        fi";
+    insert_lines:
+        "unset WSSET
+        if [ -f /etc/websupport.sh ]; then
+        . /etc/websupport.sh
+        fi"
+            insert_type => "preserve_block",
+            location => basr_prompt_append;
+
+}
+
+body location basr_prompt_append {
+    before_after => "after";
+}

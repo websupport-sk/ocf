@@ -1,0 +1,146 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+###############################################################################
+#
+#   dhcpd.cf - dhcpd config generator
+#
+#   Author: Tomas Corej <tomas.corej@websupport.sk>     
+#
+###############################################################################
+
+bundle agent dhcpdconf
+{
+    vars:
+        "networks"  slist   =>  { @(def.dhcpdzones) };
+
+    files:
+        37_9_168_59::
+            "$(def.path[debian][dhcpdroot])/dhcpd.conf"
+                handle          =>  "dhcpd_conf_new_fai",
+                comment         =>  "Generating dhcpd.conf",
+                create          =>  "true",
+                edit_defaults	=>  empty,
+                edit_line       =>  dhcpconfmain,
+                perms           =>  mog("0644","dhcpd","dhcpd"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+        !37_9_168_59::
+            "$(def.path[debian][dhcpdroot])/dhcpd.conf"
+                handle          =>  "dhcpd_conf",
+                comment         =>  "Generating dhcpd.conf",
+                create          =>  "true",
+                edit_defaults	=>  empty,
+                edit_line       =>  dhcpconfmain,
+                perms           =>  mog("0644","root","root"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+        37_9_168_59::
+            "$(def.path[debian][dhcpdroot])/dhcpd.$(networks).conf"
+                handle          =>  "dhcpd_$(networks)_conf_new_fai",
+                comment         =>  "Generating dhcpd.$(networks).conf",
+                create          =>  "true",
+                edit_defaults   =>  empty,
+                edit_line       =>  dhcpconfnet("$(networks)"),
+                perms           =>  mog("0644","dhcpd","dhcpd"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+        !37_9_168_59::
+            "$(def.path[debian][dhcpdroot])/dhcpd.$(networks).conf"
+                handle          =>  "dhcpd_$(networks)_conf",
+                comment         =>  "Generating dhcpd.$(networks).conf",
+                create          =>  "true",
+                edit_defaults   =>  empty,
+                edit_line       =>  dhcpconfnet("$(networks)"),
+                perms           =>  mog("0644","root","root"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+        37_9_168_59::
+            "$(def.path[debian][dhcpdroot])/dhcpd.phyhosts.conf"
+                handle          =>  "dhcpd_phyhosts_conf_new_fai",
+                comment         =>  "Generating dhcpd.phyhosts.conf",
+                create          =>  "true",
+                edit_defaults   =>  empty,
+                edit_line       =>  dhcpconfphy,
+                perms           =>  mog("0644","dhcpd","dhcpd"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+        !37_9_168_59::
+            "$(def.path[debian][dhcpdroot])/dhcpd.phyhosts.conf"
+                handle          =>  "dhcpd_phyhosts_conf",
+                comment         =>  "Generating dhcpd.phyhosts.conf",
+                create          =>  "true",
+                edit_defaults   =>  empty,
+                edit_line       =>  dhcpconfphy,
+                perms           =>  mog("0644","root","root"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+    commands:
+        dhcpd_reload::
+            "$(def.path[dhcpd]) -t"
+            classes     => default_retcodes("dhcpd_conf");
+
+        dhcpd_conf_ok::
+            "/etc/init.d/isc-dhcp-server restart";
+   reports:
+        dhcpd_conf_failed::
+            "dhcpd @ $(sys.host) reload failed";
+}
+
+bundle edit_line dhcpconfmain
+{
+    vars:
+        "networks"  slist	=>	{ @(def.dhcpdzones) };
+
+    insert_lines:
+        "ddns-update-style $(def.dhcpd[ddns-update-style]);";
+        "get-lease-hostnames true;";
+        "option domain-name \"$(def.dhcpd[domain-name])\";";
+        "option domain-name-servers $(def.dhcpd[domain-name-servers]);";
+        "option ntp-servers $(def.dhcpd[ntp-servers]);";
+        "option time-servers $(def.dhcpd[time-servers]);";
+        "default-lease-time $(def.dhcpd[default-lease-time]);";
+        "max-lease-time $(def.dhcpd[max-lease-time]);";
+        "authoritative;";
+        "log-facility $(def.dhcpd[log-facility]);";
+        "include \"$(def.path[debian][dhcpdroot])/dhcpd.$(networks).conf\";";
+        "include \"$(def.path[debian][dhcpdroot])/dhcpd.phyhosts.conf\";";
+
+}
+
+bundle edit_line dhcpconfnet(network)
+{
+	insert_lines:
+		"subnet $(def.net[$(network)][ip]) netmask $(def.net[$(network)][mask]) {";
+		"	option routers $(def.net[$(network)][router]);";
+		"	$(def.net[$(network)][dhcpdextra])";
+		"}"; 
+}
+
+bundle edit_line dhcpconfphy
+{
+	vars:
+		"phyhost"	slist		=>	getindices("phy_hosts.phy");
+    classes:
+        "$(phy_hosts.phy[$(phyhost)][ip])_exists" expression => "any";
+	insert_lines:
+		"group {";
+		"use-host-decl-names on;";
+		"host $(phyhost) { hardware ethernet $(phy_hosts.phy[$(phyhost)][mac]); fixed-address $(phy_hosts.phy[$(phyhost)][ip]); option host-name \"$(phyhost)\";}"
+            ifvarclass => canonify("$(phy_hosts.phy[$(phyhost)][ip])_exists");
+		"}";
+}

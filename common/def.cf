@@ -1,0 +1,360 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+###############################################################################
+#
+# common def
+#  - common/global variables and classes here  
+#
+###############################################################################
+
+bundle common def
+
+{
+ vars:
+	"domain"  string => "websupport.sk",
+		comment => "Define a global domain for all hosts",
+		handle => "common_def_vars_domain";
+
+	"acl" slist => {
+            "10.1.12.0/24",
+            "10.10.0.0/16",
+		   },
+		comment => "Define an acl for the machines to be granted accesses",
+		handle => "common_def_vars_acl";
+
+
+	"dir_masterfiles" string => translatepath("$(sys.workdir)/masterfiles"),
+		comment => "Define masterfiles path dependent on service",
+		handle => "common_def_vars_dir_masterfiles";
+	"dir_bin"         string => translatepath("$(sys.workdir)/bin"),
+		comment => "Define binary path",
+		handle => "common_def_vars_dir_bin";
+	"dir_modules"     string => translatepath("$(sys.workdir)/modules"),
+		comment => "Define modules path",
+		handle => "common_def_vars_dir_modules";
+# paths
+# FIXME: path[debian] is wrong, because we may use classes for that purpose. It should be e.g. : path[vim] and use classes
+		"path[acngroot]"	string	=>	"/etc/apt-cacher-ng/";
+		"path[acnginit]"	string	=>	"/etc/init.d/apt-cacher-ng";
+		"path[acnginit]"	        string	=>	"/etc/init.d/apt-cacher-ng";
+		"path[debian][vim]"		string	=>	"/usr/bin/vim";
+		"path[debian][tar]"		string	=>	"/bin/tar";
+		"path[debian][wget]"		string	=>	"/usr/bin/wget";
+		"path[wget]"		        string	=>	"/usr/bin/wget";
+		"path[debian][apt-key]"		string	=>	"/usr/bin/apt-key";
+		"path[apt-key]"		        string	=>	"/usr/bin/apt-key";
+		"path[debian][rm]"		    string	=>	"/bin/rm";
+		"path[debian][chroot]"		string	=>	"/usr/sbin/chroot";
+		"path[chroot]"		        string	=>	"/usr/sbin/chroot";
+		"path[debian][hosts]"		string	=>	"/etc/hosts";
+		"path[debian][dhcpdbin]"	string	=>	"/usr/sbin/dhcpd";
+		"path[dhcpd]"	            string	=>	"/usr/sbin/dhcpd";
+		"path[debian][dhcpdroot]"	string	=>	"/etc/dhcp";
+		"path[zabbixroot]"	        string	=>	"/etc/zabbix";
+		"path[zabbixconfd]"         string  =>  "/etc/zabbix/zabbix_agentd.d";
+		"path[debian][root_ssh_dir]"	string	=>	"/root/.ssh";
+		"path[debian][root_ssh_conf]"	string	=>	"/root/.ssh/config";
+		"path[debian][namedroot]"   	string  =>	"/etc/bind";
+		"path[namedroot]"   	        string  =>	"/etc/bind";
+		"path[debian][postfixconf]"   	string  =>	"/etc/postfix/main.cf";
+		"path[postfixconf]"   	        string  =>	"/etc/postfix/main.cf";
+		"path[debian][postfixmasterconf]"   	string  =>	"/etc/postfix/master.cf";
+		"path[postfixmasterconf]"   	        string  =>	"/etc/postfix/master.cf";
+		"path[postfixroot]"   	        string  =>	"/etc/postfix";
+		"path[debian][mailnameconf]"	string	=>	"/etc/mailname";
+		"path[mailnameconf]"	        string	=>	"/etc/mailname";
+		"path[debian][exportfs]"		string	=>	"/usr/sbin/exportfs";
+		"path[exportfs]"		        string	=>	"/usr/sbin/exportfs";
+		"path[debian][exports]"			string	=>	"/etc/exports";
+		"path[debian][tftpdconf]"		string	=>	"/etc/default/tftpd-hpa";
+		"path[tftpdconf]"		        string	=>	"/etc/default/tftpd-hpa";
+		"path[debian][tftpdpxe]"		string	=>	"/srv/tftp/fai/pxelinux.cfg";
+		"path[tftpdpxe]"		        string	=>	"/srv/tftp/fai/pxelinux.cfg";
+		"path[debian][tftpdroot]"		string	=>	"/srv/tftp/fai";
+		"path[tftpdroot]"		        string	=>	"/srv/tftp/fai";
+		"path[debian][tftpd]"			string	=>	"/etc/init.d/tftpd-hpa";
+		"path[tftpd]"			        string	=>	"/etc/init.d/tftpd-hpa";
+		"path[debian][debootstrap]"		string	=>	"/usr/sbin/debootstrap";
+		"path[debootstrap]"		        string	=>	"/usr/sbin/debootstrap";
+		"path[debian][localmycnf]"   	string  =>	"/root/.my.cnf";
+		"path[debian][localmypw]"   	string  =>	"/root/.mysqlpass";
+		"path[debian][sysctl_conf]"   	string  =>	"/etc/sysctl.conf";
+		"path[debian][openstack_passwords]"   	string  =>	"/root/.openstack/";
+		"path[debian][openstack_rabbit_pw]"   	string  =>	"/root/.openstack/rabbit_pw";
+		"path[debian][openstack_mysql_keystone_pw]"   	string  =>	"/root/.openstack/mysql_keystone_pw";
+		"path[debian][openstack_mysql_nova_pw]"   	string  =>	"/root/.openstack/mysql_nova_pw";
+		"path[debian][openstack_mysql_cinder_pw]"   	string  =>	"/root/.openstack/mysql_cinder_pw";
+		"path[debian][openstack_mysql_glance_pw]"   	string  =>	"/root/.openstack/mysql_glance_pw";
+		"path[debian][openstack_mysql_quantum_pw]"   	string  =>	"/root/.openstack/mysql_quantum_pw";
+		"path[debian][openstack_keystone_token]"   	string  =>	"/root/.openstack/keystone_token";
+		"path[debian][openstack_keystone_admin_pw]"   	string  =>	"/root/.openstack/keystone_admin_pw";
+		"path[debian][openstack_id_rsa]"   	string  =>	"/root/.openstack/id_rsa";
+		"path[debian][openstack_id_rsa_pub]"   	string  =>	"/root/.openstack/id_rsa.pub";
+		"path[debian][openstack_ssh_id_rsa]"   	string  =>	"/root/.ssh/id_rsa";
+		"path[debian][openstack_ssh_id_rsa_pub]"   	string  =>	"/root/.ssh/authorized_keys";
+		"path[rbldns_data]"   	string  =>	"/var/lib/rbldns/";
+		"path[rbldns_data_spamhaus]"   	string  =>	"/var/lib/rbldns/spamhaus/";
+		"path[rbldns_data_psbl]"   	string  =>	"/var/lib/rbldns/psbl/";
+		"path[mail_rbl_passwords]"   	string  =>	"/root/.mail_rbl/";
+		"path[mail_rbl_id_rsa]"   	string  =>	"/root/.mail_rbl/id_rsa";
+		"path[mail_rbl_id_rsa_pub]"   	string  =>	"/root/.mail_rbl/id_rsa.pub";
+
+		"path[templates]"      			string  =>  "/var/cfengine/inputs/configfiles/";
+		"path[nsswitch]"			string	=>	"/etc/nsswitch.conf";
+		"path[aptdir]"				string	=>	"/etc/apt";
+		"path[ntpdate]"				string	=>	"/usr/sbin/ntpdate";
+		"path[prips]"				string	=>	"/usr/bin/prips";
+		"path[syslogconf]"   	string  =>	"/etc/rsyslog.conf";
+		"path[syslogdefault]"   string  =>	"/etc/default/rsyslog";
+		"path[sshdconf]"	string	=>	"/etc/ssh/sshd_config";
+		"path[mailauth_log]"		string  =>	"/var/log/nginx-mail-proxy.log";
+		"path[ntpconf]"			string	=>	"/etc/ntp.conf";
+		"path[passdbdir]"			string	=>	"/root/.passdb";
+
+# services
+        #FIXME: IP addresses should be taken from phy_hosts.phy
+        phy::
+            "services[ns]"                          slist   =>  { "10.1.8.10", "10.1.8.11"};
+            "services[mailhub]"                     string  =>  "10.1.12.4";
+            "services[ntp]"                         slist   =>  { "10.1.8.10", "10.1.8.11"};
+        !phy::
+            "services[ns]"                          slist   =>  { "10.10.10.10"};
+            "services[mailhub]"                     string  =>  "10.10.10.11";
+            "services[ntp]"                         slist   =>  { "10.10.10.10", "10.10.10.11"};
+        any::
+            "services[ns_host][ns1]"                slist   =>  { "10.1.8.10"};
+            "services[ns_host][ns2]"                slist   =>  { "10.1.8.11"};
+            "services[netsvc]"                      slist   =>  { "10.1.8.10", "10.1.8.11"};
+            "services[cf]"                          slist   =>  { "10.1.1.158" };
+            "services[syslog]"                      slist   =>  { "10.1.1.158" };
+            "services[faiserver]"                   slist	=>  { "$(phy_hosts.phy[fai][dc1inst_ip])" };
+            "services[aptproxy]"                    string	=>  "aptproxy";
+            "services[acng]"			            slist   =>  { "10.1.2.2","10.1.12.2", "10.1.8.10", "10.10.10.10"};
+            "services[nasdomain]"                   string	=>  "dc1nas.nas";
+# dns
+	     #"dns[horizon][dc1front_ip]"            	string =>       "10.1.12.10";
+		#"dns[aptproxy][dc1front_ip]"            string =>       "10.1.12.2";
+		"dns[cfmaster][dc1net_ip]"            string =>       "10.1.8.10";
+        "dns[logs][dc1front_ip]"                string  =>  "10.1.12.5";
+
+		# network 
+
+		"dns[a1-blc1][dc1netmng_ip]"            string =>       "10.1.0.6";
+		"dns[a2-blc1][dc1netmng_ip]"            string =>       "10.1.0.7";
+		"dns[a1-blc2][dc1netmng_ip]"            string =>       "10.1.0.8";
+		"dns[a2-blc2][dc1netmng_ip]"            string =>       "10.1.0.9";
+		"dns[core1][dc1netmng_ip]"              string =>       "10.1.0.10";
+		"dns[core2][dc1netmng_ip]"              string =>       "10.1.0.11";
+
+		# storage
+        "dns[netappum][dc1storagemng_ip]"       string  =>  "10.1.2.4";
+		"dns[wsnap1-sp][dc1storagemng_ip]"      string  =>  "10.1.2.10";
+		"dns[wsnap1][dc1storagemng_ip]"         string  =>  "10.1.2.11";
+		"dns[wsnap2-sp][dc1storagemng_ip]"      string  =>  "10.1.2.12";
+		"dns[wsnap2][dc1storagemng_ip]"         string  =>  "10.1.2.13";
+
+		"dns[wsnap1][dc1nas_ip]"                string  =>  "10.1.16.10";
+		"dns[wsnap2][dc1nas_ip]"                string  =>  "10.1.16.11";
+
+# dhcpd 
+		"dhcpd[ddns-update-style]"		string	=>	"none";
+		"dhcpd[domain-name]"			string	=>	"dc1.websupport.sk";
+		"dhcpd[domain-name-servers]"		string  =>	join(",","services[ns]");
+		"dhcpd[default-lease-time]"		int	=>	"1296000";
+		"dhcpd[max-lease-time]"			int	=>	"2592000";
+		"dhcpd[authoritative]"			string	=>	"authoritative";
+		"dhcpd[log-facility]"			string	=>	"local7";
+		"dhcpd[time-servers]"			string	=>	join(",","services[ntp]");
+		"dhcpd[ntp-servers]"			string	=>	join(",","services[ntp]");
+
+#named
+		"named[phy_hosts_zone]"           string => "dc1front";
+# networks
+# networks to be generated to bind
+
+		"dhcpdzones"				slist	=>	{  	"dc1netmng",
+										"dc1servermng",
+										"dc1storagemng",	
+										"dc1nas",	
+										"dc1back",	
+										"dc1front",
+										"dc1inst",
+									};
+		"bindzones"				slist	=>	{  	"dc1netmng",
+										"dc1servermng",
+										"dc1storagemng",	
+										"dc1nas",	
+										"dc1nasa",	
+										"dc1nasb",	
+										"dc1nasc",	
+										"dc1nasd",	
+										"dc1nase",	
+										"dc1nasf",	
+										"dc1nasg",	
+										"dc1back",	
+										"dc1front",
+									};
+                "net[dc1netmng][vlanid]"                int     =>      "10";
+                "net[dc1netmng][ip]"                    string  =>      "10.1.0.0";
+                "net[dc1netmng][router]"                string  =>      "10.1.0.1";
+                "net[dc1netmng][mask]"                  string  =>      "255.255.255.0";
+                "net[dc1netmng][shortmask]"             string  =>      "/24";
+                "net[dc1netmng][domainsuf]"             string  =>      "nm";
+                "net[dc1netmng][dhcpdextra]"            string  =>      "range 10.1.0.100 10.1.0.200;";
+
+                "net[dc1servermng][vlanid]"             int     =>      "11";
+                "net[dc1servermng][ip]"                 string  =>      "10.1.1.0";
+                "net[dc1servermng][router]"             string  =>      "10.1.1.1";
+                "net[dc1servermng][mask]"               string  =>      "255.255.255.0";
+                "net[dc1servermng][shortmask]"          string  =>      "/24";
+                "net[dc1servermng][domainsuf]"          string  =>      "sem";
+                "net[dc1servermng][dhcpdextra]"         string  =>      "";
+
+                "net[dc1storagemng][vlanid]"            int     =>      "12";
+                "net[dc1storagemng][ip]"                string  =>      "10.1.2.0";
+                "net[dc1storagemng][router]"            string  =>      "10.1.2.1";
+                "net[dc1storagemng][mask]"              string  =>      "255.255.255.0";
+                "net[dc1storagemng][shortmask]"         string  =>      "/24";
+                "net[dc1storagemng][domainsuf]"         string  =>      "som";
+                "net[dc1storagemng][dhcpdextra]"        string  =>      "";
+
+                "net[dc1net][vlanid]"                   int     =>      "8";
+                "net[dc1net][ip]"                       string  =>      "10.1.8.0";
+                "net[dc1net][router]"                   string  =>      "10.1.8.1";
+                "net[dc1net][mask]"                     string  =>      "255.255.255.0";
+                "net[dc1net][shortmask]"                string  =>      "/24";
+                "net[dc1net][domainsuf]"                string  =>      "net";
+                "net[dc1net][dhcpdextra]"             	string  =>      "next-server 10.1.8.10;filename \"fai/pxelinux.0\";option root-path \"10.1.8.10:/srv/fai/nfsroot\";";
+
+                "net[dc1inst][vlanid]"                   	int     =>      "9";
+                "net[dc1inst][ip]"                       	string  =>      "10.1.9.0";
+                "net[dc1inst][router]"                   	string  =>      "10.1.9.10";
+                "net[dc1inst][mask]"                     	string  =>      "255.255.255.0";
+                "net[dc1inst][shortmask]"                	string  =>      "/24";
+                "net[dc1inst][domainsuf]"                	string  =>      "inst";
+                #"net[dc1inst][dhcpdextra]"             		string  =>      "next-server 10.1.9.10;filename \"fai/pxelinux.0\";option root-path \"10.1.9.10:/srv/fai/nfsroot\";range 10.1.9.100 10.1.9.200;";
+                "net[dc1inst][dhcpdextra]"             		string  =>      "next-server 10.1.9.10;filename \"fai/pxelinux.0\";range 10.1.9.100 10.1.9.200;";
+
+                "net[dc1nas][vlanid]"                   int     =>      "110";
+                "net[dc1nas][ip]"                       string  =>      "10.1.16.0";
+                "net[dc1nas][router]"                   string  =>      "10.1.16.1";
+                "net[dc1nas][mask]"                     string  =>      "255.255.248.0";
+                "net[dc1nas][shortmask]"                string  =>      "/21";
+                "net[dc1nas][domainsuf]"                string  =>      "nas";
+                "net[dc1nas][dhcpdextra]"             	string  =>      "";
+		# virtual networks for dividing dc1nas to /24 segments - for reverse records
+                "net[dc1nasa][ip]"                       string  =>      "10.1.17.0";
+                "net[dc1nasa][domainsuf]"                string  =>      "nas";
+
+                "net[dc1nasb][ip]"                       string  =>      "10.1.18.0";
+                "net[dc1nasb][domainsuf]"                string  =>      "nas";
+
+                "net[dc1nasc][ip]"                       string  =>      "10.1.19.0";
+                "net[dc1nasc][domainsuf]"                string  =>      "nas";
+
+                "net[dc1nasd][ip]"                       string  =>      "10.1.20.0";
+                "net[dc1nasd][domainsuf]"                string  =>      "nas";
+
+                "net[dc1nase][ip]"                       string  =>      "10.1.21.0";
+                "net[dc1nase][domainsuf]"                string  =>      "nas";
+
+                "net[dc1nasf][ip]"                       string  =>      "10.1.22.0";
+                "net[dc1nasf][domainsuf]"                string  =>      "nas";
+
+                "net[dc1nasg][ip]"                       string  =>      "10.1.23.0";
+                "net[dc1nasg][domainsuf]"                string  =>      "nas";
+		# end of virtual networks
+                "net[dc1back][vlanid]"                  int     =>      "111";
+                "net[dc1back][ip]"                      string  =>      "10.1.11.0";
+                "net[dc1back][router]"                  string  =>      "10.1.11.1";
+                "net[dc1back][mask]"                    string  =>      "255.255.255.0";
+                "net[dc1back][shortmask]"               string  =>      "/24";
+                "net[dc1back][domainsuf]"               string  =>      "bck";
+                "net[dc1back][dhcpdextra]"             	string  =>      "";
+
+                "net[dc1front][vlanid]"                 int     =>      "112";
+                "net[dc1front][ip]"                     string  =>      "10.1.12.0";
+                "net[dc1front][router]"                 string  =>      "10.1.12.1";
+                "net[dc1front][mask]"                   string  =>      "255.255.255.0";
+                "net[dc1front][shortmask]"              string  =>      "/24";
+                "net[dc1front][domainsuf]"              string  =>      "fnt";
+                #"net[dc1front][dhcpdextra]"            	string  =>      "next-server 10.1.8.10;filename \"fai/pxelinux.0\";option root-path \"10.1.8.10:/srv/fai/nfsroot\";";
+                "net[dc1front][dhcpdextra]"             string  =>      "next-server 10.1.9.10;filename \"fai/pxelinux.0\";option root-path \"10.1.9.10:/srv/fai/nfsroot\";";
+
+	    #openstack
+	    # networks definitions
+	       "net[localnet0][vlanid]"                     int     =>      "600";
+	       "net[localnet0][ip]"                         string  =>      "10.10.0.0";
+	       "net[localnet0][mask]"                       string  =>      "255.255.0.0";
+	       "net[localnet0][shortmask]"                  string  =>      "/16";
+	       "net[localnet0][openstack]"                  string  =>      "int";
+	       #"net[localnet0][openstack_router]"                  string  => "router-localnet0";
+	       #"net[localnet0][openstack_router_gw_net]"                  string  => "vlan4";
+
+		# storage network 
+	       "net[vlan110][vlanid]"                     int     =>      "110";
+	       "net[vlan110][ip]"                         string  =>      "10.1.16.0";
+	       "net[vlan110][mask]"                       string  =>      "255.255.248.0";
+	       "net[vlan110][shortmask]"                  string  =>      "/21";
+	       "net[vlan110][openstack]"                  string  =>      "ext";
+
+
+        ## old networks definitions
+        "openstack[localnet][localnet0]"     string  => "10.10.0.0/16";
+
+        # logical infrastructure
+        "vmdefault[example][root_voltype]"      string  => "root";
+        "vmdefault[example][count]"             string => "24";
+        "vmdefault[example][basesnapshot]"      string => "ubuntu-1204-minimal-template";
+        "vmdefault[example][disksize]"          string => "20";
+        "vmdefault[example][localnet_startip]"  string  => "10.10.2.1";
+        "vmdefault[example][data_disksize]"     string  => "512";
+        "vmdefault[example][data_voltype]"      string  => "example";
+        "vmdefault[example][flavor][cpu]"       string  => "4";
+        "vmdefault[example][flavor][ram]"       string  => "32768";
+
+# cinder
+        "cindershares[netapp1]" slist => {"root1", "example1"};
+        "cindershares[netapp2]" slist => {"root2", "example2"};
+        "cindershares_for_vpsroot" slist => {"root1", "root2"}; ## volume types pre vps root fs
+
+
+# sshd
+		"sshd[conf][port]"			int	=>	"22";
+		"sshd[conf][X11Forwarding]"		string	=>	"yes";
+		"sshd[conf][PermitRootLogin]"		string	=>	"yes";
+		"sshd[conf][SyslogFacility]"		string	=>	"AUTH";
+		"sshd[conf][LogLevel]"			string	=>	"INFO";
+		"sshd[conf][RSAAuthentication]"		string	=>	"yes";
+# syslog
+		"syslog[r_options]"			string	=>	"-c5";
+
+#acng
+		"acng[conf][cachedir]"			string	=>	"/var/cache/apt-cacher-ng";
+		"acng[conf][logdir]"			string	=>	"/var/log/apt-cacher-ng";
+		"acng[conf][port]"			string	=>	"3142";
+		"acng[conf][binds]"			string	=>	join(" ", "services[acng]");
+		"acng[conf][treshold]"			string	=>	"4";
+		"acng[conf][maxstandbythreads]"		string	=>	"8";
+		"acng[conf][maxthreads]"		string	=>	"-1";
+
+#ntp
+		"ntp[conf][server]" 			slist =>	{ "@(services[ntp])" };
+		"ntp[conf][driftfile]"			string =>	"/var/lib/ntp/ntp.drift";
+		"ntp[conf][statsdir]"			string =>	"/var/log/ntpstats/";
+}

@@ -1,0 +1,390 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+## bundle postfixconf je urceny pre genericke servery
+## bundle postfix_conf je urceny pre mail servery ktore pouzivaju mysql (lb-proxy-*, apache-*, mail-*)
+
+bundle agent postfixconf
+{
+    methods:
+        "satellite" usebundle   =>  postfixconf_satellite;
+}
+
+bundle agent postfixconf_satellite
+{
+    methods:
+        "package"   usebundle   =>  installpkg("postfix");
+
+    files:
+        "/etc/postfix/main.cf"
+            handle          =>  "postfix_satellite_main_cf",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  poststr,
+            edit_defaults   =>  empty,
+            classes         =>  if_repaired("reload_postfix");
+
+        "$(def.path[mailnameconf])"
+            handle          =>  "postfix_satellite_mailname",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  insert_lines("$(sys.fqhost)"),
+            edit_defaults   =>  empty,
+            classes         =>  if_repaired("reload_postfix");
+
+        "/etc/aliases"
+            handle          =>  "postfix_satellite_mail_aliases",
+            create          =>  "true",
+            perms           =>  mog("0644", "root", "root"),
+            edit_line       =>  insert_lines("root:    admin.notify@websupport.sk"),
+            #
+            edit_defaults   =>  std_defs,
+            classes         =>  if_repaired("reload_aliases");
+
+    commands:
+        reload_postfix::
+            "/etc/init.d/postfix check"
+            classes         =>  default_retcodes("postfix_conf");
+
+        postfix_conf_ok::
+            "/etc/init.d/postfix reload";
+
+        reload_aliases::
+            "/usr/bin/newaliases";
+
+    reports:
+        postfix_conf_failed::
+            "postfix @ $(sys.host) reload failed";
+}
+
+bundle agent postfix_conf
+{
+    vars:
+        "mysql_server"          string => "localhost";
+        "mysql_port"            string => "3306";
+        "mysql_user"            string => "postfix";
+        "mysql_dbname"          string => "admin";
+        "mysql_user_scaledo"    string => "postfix_scaledo";
+        "mysql_dbname_scaledo"  string => "wscloud-email";
+
+
+	methods:
+        mail_backend|mail_proxy_mx|mail_proxy_smtp|mail_proxy_out|webhosting|webcron::
+            "postfixconf_mysql_create_user"             usebundle => mysql_create_user("$(mysql_user)","$(mysql_dbname)");
+            "postfixconf_mysql_create_user_scaledo"     usebundle => mysql_create_user("$(mysql_user_scaledo)","$(mysql_dbname_scaledo)");
+        any::
+            "postfix_mail_main"                 usebundle => postfix_main;
+
+    processes:
+        "/usr/lib/postfix/master"
+        handle          => "run_postfix",
+        comment         => "Promise that postfix is running",
+        restart_class   => "start_postfix";
+
+    commands:
+        start_postfix::
+            "/usr/sbin/service postfix start"
+            handle      => "start_postfix";
+}
+
+bundle agent postfix_main
+{
+    vars:
+        any::
+            "postfix_template"  string => "mail_default", policy => "overridable";
+
+            "static_config_files" slist => {
+                "main.cf",
+                "master.cf"
+            };
+
+        mail_backend::
+            "postfix_template"  string => "mail_backend", policy => "overridable";
+            "static_config_files" slist => {
+                "main.cf",
+                "master.cf"
+            };
+
+            "postmap_config_files" slist => {
+                "transport",
+                "sender_access"
+            };
+
+            "mysql_config_files" slist => {
+                "mysql-virtual_alias_maps.cf",
+                "mysql-virtual_mailbox_base.cf",
+                "mysql-virtual_mailbox_domains.cf",
+                "mysql-virtual_mailbox_maps.cf",
+                "mysql-virtual_transport.cf",
+                "mysql-sender_dependent_default_transport_maps.cf",
+                "mysql-sender_dependent_relayhost_maps.cf"
+            };
+
+        ## proxy_mx_norbl ma separatny template dir
+        mail_proxy_mx.!mail_proxy_mx_norbl::
+            "postfix_template"  string => "mail_proxy_mx", policy => "overridable";
+        mail_proxy_mx.mail_proxy_mx_norbl::
+            "postfix_template"  string => "mail_proxy_mx_norbl", policy => "overridable";
+
+        mail_proxy_mx::
+            "static_config_files" slist => {
+                "main.cf",
+                "master.cf",
+		        "rules/postscreen_access.cidr",
+		        "postscreen_dnsbl_reply_map",
+            };
+
+            "postmap_config_files" slist => {
+                "relay_domains",
+                "relay_recipient_maps",
+                "smtp_tls_policy_maps",
+                "transport",
+                "rules/client_access",
+                "rules/client_access_reverse",
+                "rules/recipient_access_reverse",
+                "rules/restricted_senders",
+                "rules/sender_access",
+                "rules/sender_bcc_maps",
+                "rules/sender_dependent_relayhost_maps"
+            };
+
+            "mysql_config_files" slist => {
+                "mysql-recipient_access.cf",
+                "mysql-recipient_access_rbl.cf",
+                "mysql-relay_domains.cf",
+                "mysql-relay_recipient_maps.cf",
+                "mysql-sender_bcc_maps.cf",
+                "mysql-sender_dependent_default_transport_maps.cf",
+                "mysql-sender_dependent_relayhost_maps.cf",
+                "mysql-smtpd_sender_login_maps.cf",
+                "mysql-transport.cf",
+                "mysql-virtual_alias_maps.cf",
+                "mysql-virtual_mailbox_domains.cf",
+                "mysql-virtual_mailbox_maps.cf",
+                "mysql-virtual_transport.cf",
+
+                "mysql-scaledo-recipient_access.cf",
+                "mysql-scaledo-recipient_access_rbl.cf",
+                "mysql-scaledo-relay_domains.cf",
+                "mysql-scaledo-relay_recipient_maps.cf",
+                "mysql-scaledo-transport.cf"
+            };
+
+        webhosting||webcron::
+            "postfix_template"  string => "mail_webhosting", policy => "overridable";
+
+            "static_config_files" slist => {
+                "main.cf",
+                "master.cf"
+            };
+
+            "postmap_config_files" slist => {
+                "relay_domains",
+                "relay_recipient_maps",
+                "smtp_tls_policy_maps",
+                "transport",
+                "rules/recipient_access_reverse",
+                "rules/client_access",
+                "rules/client_access_reverse",
+                "rules/sender_access",
+                "rules/restricted_senders"
+            };
+
+            "mysql_config_files" slist => {
+                "mysql-transport.cf",
+                "mysql-sender_dependent_default_transport_maps.cf",
+                "mysql-sender_dependent_relayhost_maps.cf",
+                "mysql-relay_domains.cf",
+                "mysql-relay_recipient_maps.cf",
+                "mysql-scaledo-transport.cf",
+                "mysql-scaledo-sender_dependent_default_transport_maps.cf",
+                "mysql-scaledo-sender_dependent_relayhost_maps.cf",
+                "mysql-scaledo-relay_domains.cf",
+                "mysql-scaledo-relay_recipient_maps.cf",
+            };
+
+        mail_proxy_smtp::
+            "postfix_template"  string => "mail_proxy_smtp", policy => "overridable";
+
+            "static_config_files" slist => {
+                "main.cf",
+                "master.cf"
+            };
+
+            "postmap_config_files" slist => {
+                "relay_domains",
+                "relay_recipient_maps",
+                "smtp_tls_policy_maps",
+                "transport",
+                "rules/recipient_access_reverse",
+                "rules/client_access",
+                "rules/client_access_reverse",
+                "rules/sender_access",
+                "rules/restricted_senders"
+            };
+
+            "mysql_config_files" slist => {
+                "mysql-transport.cf",
+                "mysql-sender_dependent_default_transport_maps.cf",
+                "mysql-sender_dependent_relayhost_maps.cf",
+                "mysql-relay_domains.cf",
+                "mysql-relay_recipient_maps.cf",
+                "mysql-scaledo-transport.cf",
+                "mysql-scaledo-sender_dependent_default_transport_maps.cf",
+                "mysql-scaledo-sender_dependent_relayhost_maps.cf",
+                "mysql-scaledo-relay_domains.cf",
+                "mysql-scaledo-relay_recipient_maps.cf"
+
+            };
+
+        mail_proxy_out::
+            "postfix_template"  string => "mail_proxy_out", policy => "overridable";
+
+            "static_config_files" slist => {
+                "main.cf",
+                "master.cf"
+            };
+
+            "postmap_config_files" slist => {
+                "relay_domains",
+                "relay_recipient_maps",
+                "smtp_tls_policy_maps",
+                "transport",
+            };
+
+            "mysql_config_files" slist => {
+                "mysql-sender_dependent_default_transport_maps.cf",
+                "mysql-sender_dependent_relayhost_maps.cf",
+                "mysql-relay_domains.cf",
+                "mysql-relay_recipient_maps.cf",
+                "mysql-transport.cf"
+            };
+
+    
+    files:
+        "/etc/postfix/."
+            create  => "false",
+            perms   => mog("0711","root","root");
+
+        "/etc/aliases"
+            handle          => "postfix_main /etc/aliases",
+            create          => "true",
+            perms           => mog("0644", "root", "root"),
+            edit_line       => expand_template("$(def.path[templates])/${postfix_template}/aliases"),
+            edit_defaults   => empty,
+            classes         => if_repaired("run_newaliases");
+
+        "/var/spool/postfix/etc/resolv.conf"
+            handle          => "posfix_main /var/spool/postfix/etc/resolv.conf",
+            create          => "true",
+            perms           => mog("0644", "root", "root"),
+            edit_line       => expand_template("/etc/resolv.conf"),
+            edit_defaults   => empty,
+            classes         => if_repaired("reload_postfix");
+
+        "/var/spool/postfix/etc/hosts"
+            handle          => "posfix_main /var/spool/postfix/etc/hosts",
+            create          => "true",
+            perms           => mog("0644", "root", "root"),
+            edit_line       => expand_template("/etc/hosts"),
+            edit_defaults   => empty,
+            classes         => if_repaired("reload_postfix");
+
+        "$(def.path[postfixroot])/$(static_config_files)"
+            handle          => "postfix_$(static_config_files)",
+            create          => "true",
+            perms           => mog("0644", "root", "root"),
+            edit_line       => expand_template("$(def.path[templates])/${postfix_template}/postfix/$(static_config_files)"),
+            edit_defaults   => empty,
+            classes         => if_repaired("reload_postfix");
+
+        "$(def.path[postfixroot])/$(postmap_config_files)"
+            handle          => "postfix_$(postmap_config_files)",
+            create          => "true",
+            perms           => mog("0644", "root", "root"),
+            edit_line       => expand_template("$(def.path[templates])/${postfix_template}/postfix/$(postmap_config_files)"),
+            edit_defaults   => empty,
+            classes         => if_repaired("postfix_postmap_files");
+
+        "$(def.path[postfixroot])/$(mysql_config_files)"
+            handle          => "postfix_$(mysql_config_files)",
+            create          => "true",
+            perms           => mog("0640", "root", "postfix"),
+            edit_line       => expand_template("$(def.path[templates])/${postfix_template}/postfix/$(mysql_config_files)"),
+            edit_defaults   => empty,
+            ifvarclass      => or("mysql_user_created_$(postfix_conf.mysql_user)","mysql_user_created_$(postfix_conf.mysql_user_scaledo)"),
+            classes         => if_repaired("reload_postfix");
+
+        "$(def.path[postfixroot])/ssl/"
+            handle          => "postfix_ssl",
+            copy_from       => local_cp("$(def.path[templates])/${postfix_template}/postfix/ssl"),
+            perms           => mog("0640", "root", "postfix"),
+            depth_search    => recurse("inf"),
+            file_select     => all,
+            classes         => if_repaired("reload_postfix");
+
+
+        ## musime nastavit prava na citanie pre others kvoli sendmail binarke ktora ho potrebuje precitat
+        ## TODO: vytvorit samostatneho mysql usera ktory bude mat pristup iba k tabulke postfix_not_authorized_submit_users pretoze tento fajl si precita hocikto
+        webhosting||webcron::
+            "$(def.path[postfixroot])/mysql-not_authorized_submit_users.cf"
+            handle          => "postfix_mysql-not_authorized_submit_users.cf",
+            create          => "true",
+            perms           => mog("0644", "root", "postfix"),
+            edit_line       => expand_template("$(def.path[templates])/${postfix_template}/postfix/mysql-not_authorized_submit_users.cf"),
+            edit_defaults   => empty,
+            ifvarclass      => or("mysql_user_created_$(postfix_conf.mysql_user)","mysql_user_created_$(postfix_conf.mysql_user_scaledo)"),
+            classes         => if_repaired("reload_postfix");
+
+
+	commands:
+			reload_postfix::
+				"/etc/init.d/postfix reload";
+				
+			check_postfix::
+				"/etc/init.d/postfix check";
+
+            postfix_postmap_files::
+                "/usr/sbin/postmap $(def.path[postfixroot])/$(postmap_config_files)";
+
+            run_newaliases::
+                "/usr/bin/newaliases";
+}
+
+bundle edit_line poststr
+{
+        insert_lines:
+		"smtpd_banner = $(sys.fqhost) hostname ESMTP $mail_name (Debian/GNU)";
+		"biff = no";
+		"append_dot_mydomain = yes";
+		"readme_directory = no";
+		"smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem";
+		"smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key";
+		"smtpd_use_tls=yes";
+		"smtpd_tls_session_cache_database = btree:/smtpd_scache";
+		"smtp_tls_session_cache_database = btree:/smtp_scache";
+		"alias_maps = hash:/etc/aliases";
+		"alias_database = hash:/etc/aliases";
+		"myorigin = /etc/mailname";
+		"mydestination = $(sys.fqhost), $(sys.host) , localhost, localhost.localdomain, localhost";
+		"relayhost = $(def.services[mailhub])";
+		"mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128";
+		"mailbox_size_limit = 0";
+		"recipient_delimiter =";
+		"inet_interfaces = all";
+		"inet_protocols = all";
+}

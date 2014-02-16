@@ -1,0 +1,97 @@
+###############################################################################
+# This part is for cf-serverd
+#
+# Server controls are mainly about determining access policy for the connection 
+# protocol: i.e. access to the server itself. 
+# Access to specific files must be granted in addition. 
+###############################################################################
+
+body server control
+
+{
+
+ denybadclocks         => "false";
+ allowconnects         => { "127.0.0.1" , "::1", @(def.acl) };
+ allowallconnects      => { "127.0.0.1" , "::1", @(def.acl) };
+ trustkeysfrom         => { "127.0.0.1" , "::1", @(def.acl) };
+
+ skipverify            => { ".*\.$(def.domain)", "127.0.0.1" , "::1", @(def.acl) };
+
+ allowusers            => { "root" };
+ maxconnections        => "100";
+
+ !windows::
+  cfruncommand => "$(sys.cf_twin) -f $(sys.workdir)/inputs/update.cf ; $(sys.cf_agent)";
+
+}
+
+###############################################################################
+
+bundle server access_rules()
+
+{
+
+ access:
+
+  any::
+
+   "$(def.dir_masterfiles)"
+      handle => "server_access_rule_grant_access_policy",
+      comment => "Grant access to the policy updates",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.path[nssbdb])"
+      handle => "path_for_nss_bdb_files",
+      comment => "Grant access BDB files for NSS service",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.path[debian][openstack_passwords])"
+      handle => "path_for_openstack_passwords",
+      comment => "Grant access to openstack passwords for openstack nodes",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.path[mail_rbl_passwords])"
+      handle => "path_for_mail_rbl_passwords",
+      comment => "Grant access to mail_rbl passwords for mail-rbl-* nodes",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.path[rbldns_data])"
+      handle => "path_for_mail_rbldns_data",
+      comment => "Grant access to mail_rbl data for mail-rbl-* nodes",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.path[debian][admingate_source])"
+      handle => "path_for_admingate",
+      comment => "Grant access to admingate for specific nodes",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.dir_bin)"
+       handle => "server_access_grant_access_binary",
+      comment => "Grant access to binary for cf-runagent",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+   "$(def.dir_modules)"
+       handle => "server_access_grant_access_modules",
+      comment => "Grant access to modules directory",
+      admit   => { ".*$(def.domain)", @(def.acl) };
+
+# Uncomment the promise below to allow cf-runagent to
+# access cf-agent on Windows machines
+#       
+#  "c:\program files\cfengine\bin\cf-agent.exe"
+#
+#    handle => "server_access_rule_grant_access_cfagent_windows",
+#    comment => "Grant access to the agent (for cf-runagent)",
+#    admit   => { ".*\.$(def.domain)", @(def.acl) };
+
+ roles:
+
+# Use roles to allow specific remote cf-runagent users to
+# define certain soft-classes when running cf-agent on this host        
+
+  cfengine_3::
+
+   ".*"  authorize => { "root" };
+
+}
+

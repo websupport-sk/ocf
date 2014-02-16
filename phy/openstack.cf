@@ -1,0 +1,110 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+###
+## common bundles for osmng/oscompute/osnetwork
+###
+
+bundle agent openstack_interfaces_osmng
+{
+
+    vars:
+        "dc1openstack_ip" string  => "$(phy_hosts.phy[$(sys.host)][dc1openstack_ip])";
+
+    files:
+        "/etc/network/interfaces"
+        handle      =>  "osmng /etc/network/interfaces",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/network/interfaces",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/interfaces_osmng"),
+        classes     =>  if_repaired("networking_restart");
+
+    commands:
+        networking_restart::
+        "/usr/sbin/service networking restart";
+
+}
+
+bundle agent openstack_interfaces
+{
+
+    vars:
+        "dc1nasa_ip" string  => "$(phy_hosts.phy[$(sys.host)][dc1nasa_ip])";
+
+    files:
+        "/etc/network/interfaces"
+        handle      =>  "/etc/network/interfaces",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/network/interfaces",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/interfaces"),
+        classes     =>  if_repaired("networking_restart");
+    files:
+        "/etc/udev/rules.d/70-persistent-net-mtu.rules"
+        handle      =>  "/etc/udev/rules.d/70-persistent-net-mtu.rules",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/udev/rules.d/70-persistent-net-mtu.rules",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/udev/70-persistent-net-mtu.rules"),
+        classes     =>  if_repaired("udev_restart");
+
+        "/etc/udev/rules.d/kvm.rules"
+        handle      =>  "/etc/udev/rules.d/kvm.rules",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/udev/rules.d/kvm.rules",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/udev/kvm.rules"),
+        classes     =>  if_repaired("udev_restart");
+
+
+    commands:
+        udev_restart::
+        "/usr/sbin/service udev restart";
+        networking_restart::
+        "/usr/sbin/service networking restart";
+
+}
+
+bundle agent openstack_disable_gso_on_ethX
+{
+    commands:
+    
+        "ethtool -k eth0|grep -q 'generic-segmentation-offload: on' && ethtool -K eth0 gso off"
+        contain => in_shell;
+        "ethtool -k eth1|grep -q 'generic-segmentation-offload: on' && ethtool -K eth1 gso off"
+        contain => in_shell;
+}
+
+bundle agent openstack_openvswitch_module
+{
+    ## default kernel openvswitch module has not version info
+    commands:
+        "if [ ! -f /sys/module/openvswitch/version ]; then echo -n +openvswitch_module_version_empty; fi"
+        contain => in_shell,
+        module => "true";
+
+        openvswitch_module_version_empty::
+            "/sbin/rmmod openvswitch";
+            "/sbin/modprobe openvswitch";
+}
+

@@ -1,0 +1,83 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+bundle agent sshdconf 
+{
+        files:
+		"$(def.path[sshdconf])"
+			handle  	=> "sshd_conf",
+			create  	=> "true",
+			perms   	=> mog("0644", "root", "root"),
+			edit_line   	=> sshdstr,
+			edit_defaults 	=> empty,
+			classes		=> if_repaired("sshd_configtest");
+
+	commands:
+		sshd_configtest::
+			"/usr/sbin/sshd -t"
+				handle		=> "sshd_syntax_checked",
+				classes		=> default_retcodes("sshd_config");
+		
+		sshd_config_ok::
+			"/etc/init.d/ssh restart"
+				handle		=> "sshd_reload",
+				depends_on	=> { "sshd_syntax_checked" };
+							
+		
+}
+
+bundle edit_line sshdstr
+{
+	insert_lines:
+        lb::
+		"Port $(def.sshd[conf][lb_proxy_port])";
+
+        !lb::
+		"Port $(def.sshd[conf][port])";
+
+        any::
+		"Protocol 2";
+		"HostKey /etc/ssh/ssh_host_rsa_key";
+		"HostKey /etc/ssh/ssh_host_dsa_key";
+		"UsePrivilegeSeparation yes";
+		"KeyRegenerationInterval 3600";
+		"ServerKeyBits 768";
+		"SyslogFacility $(def.sshd[conf][SyslogFacility])";
+		"LogLevel $(def.sshd[conf][LogLevel])";
+		"LoginGraceTime 120";
+		"PermitRootLogin $(def.sshd[conf][PermitRootLogin])";
+		"StrictModes yes";
+		"RSAAuthentication $(def.sshd[conf][RSAAuthentication])";
+		"PubkeyAuthentication yes";
+		"IgnoreRhosts yes";
+        "MaxSessions 50";
+		"RhostsRSAAuthentication no";
+		"HostbasedAuthentication no";
+		"PermitEmptyPasswords no";
+		"ChallengeResponseAuthentication no";
+		"X11Forwarding $(def.sshd[conf][X11Forwarding])";
+		"X11DisplayOffset 10";
+		"PrintMotd no";
+		"PrintLastLog yes";
+		"TCPKeepAlive yes";
+		"AcceptEnv LANG LC_*";
+		"Subsystem sftp /usr/lib/openssh/sftp-server";
+		"UsePAM yes";
+
+}
+
+

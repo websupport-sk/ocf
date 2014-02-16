@@ -1,0 +1,234 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+body package_method apt_get_individual
+{
+    package_changes                     =>  "individual";
+    package_commands_useshell           =>  "false";
+    package_list_command                =>  "$(debian_knowledge.call_dpkg) -l";
+    package_list_name_regex             =>  ".i\s+([^\s]+).*";
+    package_list_version_regex          =>  ".i\s+[^\s]+\s+([^\s]+).*";
+    package_installed_regex             =>  ".i.*"; # packages that have been uninstalled may be listed
+    package_name_convention             =>  "$(name)";
+    package_list_update_ifelapsed       =>  "240";
+
+    # Target a specific release, such   as backports
+    package_add_command                 =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes install";
+    package_list_update_command         =>  "$(debian_knowledge.call_apt_get) update";
+    package_delete_command              =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes -q remove";
+    package_update_command              =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes install";
+    package_patch_command               =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes install";
+    package_verify_command              =>  "$(debian_knowledge.call_dpkg) -s";
+    package_noverify_returncode         =>  "1";
+
+    package_patch_list_command          =>  "$(debian_knowledge.call_apt_get) --just-print dist-upgrade";
+    package_patch_name_regex            =>  "^Inst\s+(\S+)\s+.*";
+    package_patch_version_regex         =>  "^Inst\s+\S+\s+\[?\(?([^\],\s]+).*";
+
+    # make correct version comparisons
+    package_version_less_command        =>  "$(debian_knowledge.call_dpkg) --compare-versions $(v1) lt $(v2)";
+    package_version_equal_command       =>  "$(debian_knowledge.call_dpkg) --compare-versions $(v1) eq $(v2)";
+
+}
+
+body package_method apt_get_bulk
+{
+    package_changes                     =>  "bulk";
+    package_commands_useshell           =>  "false";
+    package_list_command                =>  "$(debian_knowledge.call_dpkg) -l";
+    package_list_name_regex             =>  ".i\s+([^\s]+).*";
+    package_list_version_regex          =>  ".i\s+[^\s]+\s+([^\s]+).*";
+    package_installed_regex             =>  ".i.*"; # packages that have been uninstalled may be listed
+    package_name_convention             =>  "$(name)";
+
+    package_list_update_ifelapsed       =>  "240";
+    # Target a specific release, such as backports
+    package_add_command                 =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes install";
+    package_list_update_command         =>  "$(debian_knowledge.call_apt_get) update";
+    package_delete_command              =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes -q remove";
+    package_update_command              =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes install";
+    package_patch_command               =>  "$(debian_knowledge.call_apt_get) $(debian_knowledge.dpkg_options) --yes install";
+    package_verify_command              =>  "$(debian_knowledge.call_dpkg) -s";
+    package_noverify_returncode         =>  "1";
+    package_patch_list_command          =>  "$(debian_knowledge.call_apt_get) --just-print dist-upgrade";
+    package_patch_name_regex            =>  "^Inst\s+(\S+)\s+.*";
+    package_patch_version_regex         =>  "^Inst\s+\S+\s+\[?\(?([^\],\s]+).*";
+    # make correct version comparisons
+    package_version_less_command        =>  "$(debian_knowledge.call_dpkg) --compare-versions $(v1) lt $(v2)";
+    package_version_equal_command       =>  "$(debian_knowledge.call_dpkg) --compare-versions $(v1) eq $(v2)";
+
+}
+
+
+bundle agent updatepkgs(base)
+{
+    classes:
+        "$($(base)_config.pkgsver[$($(base)_config.updatepkgs)])_exist"	expression	=>	"any";
+    methods:
+        "updatepkg" usebundle => updatepkgver("$($(base)_config.updatepkgs)","$($(base)_config.pkgsver[$($(base)_config.updatepkgs)])"),
+        ifvarclass	=>	canonify("$($(base)_config.pkgsver[$($(base)_config.updatepkgs)])_exist");
+
+        "updatepkg" usebundle => updatepkg("$($(base)_config.updatepkgs)"),
+            ifvarclass => not(canonify("$($(base)_config.pkgsver[$($(base)_config.updatepkgs)])_exist"));
+}
+
+
+bundle agent updatepkg(name)
+{
+    packages:
+        "$(name)"
+            package_policy      =>  "addupdate",
+            package_method      =>  apt_get_individual,
+            action              =>  if_elapsed("30"),
+            classes             =>  if_repaired("$(name)_wasupdated");
+}
+
+
+bundle agent updatepkgver(name,version)
+{
+    packages:
+        "$(name)"
+            package_policy      =>  "addupdate",
+            package_method      =>  apt_get_individual,
+            package_version     =>  "$(version)",
+            action              =>  if_elapsed("30"),
+            classes             =>  if_repaired("$(name)_wasupdated");
+}
+
+bundle agent installpkgs(base)
+{
+    vars:
+        "pkgtype"       slist   =>  getindices("$(base)_config.pkgs");
+
+    packages:
+        "$($(base)_config.pkgs[$(pkgtype)][list])"
+            package_policy      =>  "add",
+            package_method      =>  apt_get_bulk,
+            action              =>  if_elapsed("30");
+}
+
+
+bundle agent installpkg(name)
+{
+    packages:
+        "$(name)"
+            package_policy      =>  "add",
+            package_method      =>  apt_get_individual,
+            action              =>  if_elapsed("30"),
+            classes             =>  if_repaired("$(name)_wasinstalled");
+}
+
+bundle agent verifypkg(name)
+{
+    vars:
+        "cname"             string  =>  canonify("$(name)");
+    packages:
+        "$(name)"
+            package_policy          => "verify",
+            package_method          => apt_get_individual,
+            classes                 => if_ok("$(cname)_isinstalled");
+
+}
+
+bundle agent installrepo(base)
+{
+    vars:
+        ubuntu|debian::
+            "pkgtypes" slist   => getindices("$(base)_config.pkgs");
+    classes:
+        ubuntu|debian::
+            "$($(base)_config.pkgs[$(pkgtypes)][repo])_exist"   expression  =>  "any";
+            "$($(base)_config.pkgs[$(pkgtypes)][key])_exist"    expression  =>  "any";
+        repokey_install_ok::
+            "$(pkgtypes)_repo_ok"                               expression  =>  "any";
+
+    files:
+        ubuntu|debian::
+            "/etc/apt/sources.list.d/$(pkgtypes).list"
+                handle              =>  "$(pkgtypes) repository list",
+                create              =>  "true",
+                perms               =>  mog("0600", "root", "root"),
+                edit_line           =>  insert_lines("$($(base)_config.pkgs[$(pkgtypes)][repo])"),
+                edit_defaults       =>  empty,
+                classes             =>  if_repaired("aptkeyinst"),
+                ifvarclass          =>  and(canonify("$($(base)_config.pkgs[$(pkgtypes)][repo])_exist"),canonify("$($(base)_config.pkgs[$(pkgtypes)][key])_exist"));
+
+    commands:
+        aptkeyinst::
+            "/usr/bin/wget -q --no-check-certificate -O /tmp/$(pkgtypes).pub $($(base)_config.pkgs[$(pkgtypes)][key])"
+                        classes     => default_retcodes("repokey_dl");
+        repokey_dl_ok::
+            "/usr/bin/apt-key add /tmp/$(pkgtypes).pub"
+                        classes     => default_retcodes("repokey_install");
+        repokey_install_ok::
+            "/usr/bin/apt-get update";
+        any::
+            "/bin/rm -f /tmp/$(pkgtypes).pub";
+
+}
+
+
+bundle agent aptnocache
+{
+    files:
+        "/run/apt/cache/."
+            handle      => "apt_runtmpfs_cache_dir",
+            create      => "true",
+            perms       => mog("0755", "root", "root");
+
+        "$(def.path[aptdir])/apt.conf.d/79aptruncache"
+            handle          =>  "apt_cache_in_run_tmpfs",
+            comment         =>  "Sets apt cache to ramdisk in /run/apt/cache",
+            create          =>  "true",
+            perms           =>  mog("0600", "root", "root"),
+            edit_line       =>  insert_lines("Dir::Cache::archives \"/run/apt/cache\";"),
+            edit_defaults   =>  empty;
+
+        "$(def.path[aptdir])/apt.conf.d/80aptnocache"
+            handle          =>  "apt_no_cache",
+            comment         =>  "Deletes cache after using it",
+            create          =>  "true",
+            perms           =>  mog("0600", "root", "root"),
+            edit_line       =>  insert_lines("DPkg::Post-Invoke {\"/bin/rm -f /run/apt/cache/*.deb || true\";};"),
+            edit_defaults   =>  empty;
+}
+
+bundle agent aptproxy
+{
+    files:
+        "$(def.path[aptdir])/apt.conf.d/proxy"
+            handle          =>  "apt_no_cache_uses_proxy",
+            comment         =>  "APT should use proxy on FAI server",
+            create          =>  "true",
+            perms           =>  mog("0600", "root", "root"),
+            edit_line       =>  insert_lines("Acquire::http::Proxy \"http://aptproxy:3142\";"),
+            edit_defaults   =>  empty;
+}
+
+bundle agent aptpin
+{
+    files:
+        "$(def.path[aptdir])/preferences.d/websupport"
+            handle          =>  "apt_pin_websupport",
+            comment         =>  "APT should use proxy on FAI server",
+            create          =>  "true",
+            perms           =>  mog("0600", "root", "root"),
+            edit_line       =>  insert_lines("Package: *
+Pin: origin \"repo.websupport.sk\"
+Pin-Priority: 1001"),
+            edit_defaults   =>  empty;
+}

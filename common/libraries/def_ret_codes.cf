@@ -1,0 +1,45 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+body classes default_retcodes(d)
+{
+				# CFEngine defined bundles to indicate if promises was kept|repaired|failed by return codes.	
+				kept_returncodes 	=> { "0" };
+				repaired_returncodes 	=> { "5" };
+			        #  to do :  range (1..255) to failed_returncodes
+				failed_returncodes 	=> {"1","2","255"};
+
+				# Set soft contexts in order of promise status
+				promise_kept 		=> { "$(d)_ok" };
+				promise_repaired 	=> { "$(d)_repaired" };
+				repair_failed 		=> { "$(d)_failed" };
+}
+
+body classes upstart_retcodes(d)
+{
+                # CFEngine defined bundles to indicate if promises was kept|repaired|failed by return codes.    
+                kept_returncodes    => { "0","1" };
+                repaired_returncodes    => { "5" };
+                    #  to do :  range (1..255) to failed_returncodes
+                failed_returncodes  => {"2","255"};
+
+                # Set soft contexts in order of promise status
+                promise_kept        => { "$(d)_ok" };
+                promise_repaired    => { "$(d)_repaired" };
+                repair_failed       => { "$(d)_failed" };
+}
+

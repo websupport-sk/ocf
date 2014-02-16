@@ -1,0 +1,676 @@
+#############################################################################
+#   ocf - CFEngine3 policy files for deploying Openstack
+#   Copyright (C) 2014  WebSupport, s.r.o.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software Foundation
+#   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+#############################################################################
+
+bundle agent oscompute_config
+{
+	vars:
+        "os_services"               slist   =>  { "keystone","nova","glance","cinder","quantum" };
+        "os_bind_address"           string  =>  "$(phy_hosts.phy[osmng][ip])";
+        "node_address"              string  =>  "$(phy_hosts.phy[$(sys.host)][ip])";
+
+		"pkgs[debian][list]"	    slist   =>  {
+                                                "sysfsutils",
+                                                "vim",
+                                                "mtr",
+                                                "apg",
+                                                "ntp",
+                                                "dstat",
+                                                "rsync",
+                                                "nfs-common",
+                                                "tcpdump",
+                                                "postfix",
+                                                "ethtool",
+                                                "intel-microcode",
+                                                "numad",
+                                                "python-psutil",
+                                    };
+
+        "pkgs[websupport][list]"    slist   =>  {
+                                                "nova-compute",
+                                                "nova-compute-kvm",
+                                                "cinder-volume",
+                                                "quantum-plugin-openvswitch",
+                                                "quantum-plugin-openvswitch-agent",
+                                                "openvswitch-switch",
+                                                "openvswitch-datapath-dkms",
+                                                "libvirt-bin",
+                                                "numad"
+                                    };
+    	"pkgs[websupport][repo]"    string  => "deb http://repo.websupport.sk/ubuntu precise main";
+    	"pkgs[websupport][key]"     string  => "http://repo.websupport.sk/key.key";
+
+        "updatepkgs"                slist   =>  {	
+                                                "nova-compute",
+                                                "libvirt-bin",
+                                                "numad"
+                                    };
+
+        "pkgsver[nova-compute]"     string  =>  "1:2013.1.3-0ubuntu1~cloud103";
+        "pkgsver[libvirt-bin]"      string  =>  "1.1.3-0ubuntu101";
+        "pkgsver[numad]"            string  =>  "0.5.2";
+    }
+
+bundle agent oscompute_main {
+    methods:
+    # generic stuff
+    "oscompute_config"                  usebundle   =>  oscompute_config;
+    "oscompute_installrepo"             usebundle   =>  installrepo("oscompute");
+    "oscompute_installkernel"           usebundle   =>  openstack_installkernel;
+    "oscompute_installpkgs"             usebundle   =>  installpkgs("oscompute");
+    "oscompute_updatepkgs"              usebundle   =>  updatepkgs("oscompute");
+    "oscompute_hostsconf"               usebundle   =>  hostsconf;
+    "oscompute_ntp"                     usebundle   =>  ntp;
+    "oscompute_locale"                  usebundle   =>  locale;
+    "oscompute_timezone"                usebundle   =>  timezone;
+    "oscompute_disable_gso_on_ethX"     usebundle   =>  openstack_disable_gso_on_ethX;
+    "oscompute_postfixconf"             usebundle   =>  postfixconf;
+    "oscompute_syslogconf"              usebundle   =>  syslogconf;
+    "oscompute_ssh_conf"                usebundle   =>  ssh_conf;
+    # openstack compute uff
+    "oscompute_vhost_net"               usebundle   =>  oscompute_vhost_net;
+    "oscompute_openvswitch_module"      usebundle   =>  openstack_openvswitch_module;
+    "oscompute_interfaces"              usebundle   =>  openstack_interfaces;
+    "oscompute_setup_bridges"           usebundle   =>  oscompute_setup_bridges;
+    "oscompute_setup_nfsphy"            usebundle   =>  oscompute_setup_nfsphy;
+    "oscompute_setup_copy_psswds"       usebundle   =>  osmng_setup_copy_passwords;
+    "oscompute_setup_generate_psswds"   usebundle   =>  osmng_setup_generate_passwords;
+    "osmng_setup_cfengine"              usebundle   =>  osmng_setup_cfengine;
+    "osmng_setup_bashrc"                usebundle   =>  osmng_setup_bashrc;
+    "oscompute_setup_getinfo"           usebundle   =>  oscompute_setup_getinfo;
+    "oscompute_setup_varlog"            usebundle   =>  oscompute_setup_varlog;
+    "oscompute_setup_uidgidfix"         usebundle   =>  oscompute_uidgidfix;
+    "oscompute_setup_libvirt"           usebundle   =>  oscompute_setup_libvirt;
+    "oscompute_setup_nova"              usebundle   =>  oscompute_setup_nova;
+    "oscompute_setup_cinder"            usebundle   =>  oscompute_setup_cinder;
+    "oscompute_setup_quantum"           usebundle   =>  oscompute_setup_quantum;
+    "oscompute_process_watchdog"        usebundle   =>  oscompute_process_watchdog;
+    #scaledo stuff
+    "oscompute_route_to_api"            usebundle   =>  oscompute_route_to_api;
+    "oscompute_scaledorpc"              usebundle   =>  scaledo_rpc("oscompute");
+}
+
+bundle agent oscompute_route_to_api
+{
+    commands:
+        "/sbin/ip ro|grep -q '^37.9.169.100 via 10.1.12.2' || echo +no_route_to_api"
+            module => "yes",
+            contain => in_shell;
+
+        no_route_to_api::
+            "/sbin/ip ro add 37.9.169.100 via 10.1.12.2";
+        
+}
+
+bundle agent oscompute_uidgidfix
+{
+    vars:
+        "nova_uid"              string      =>  execresult("/usr/bin/id -u nova","noshell");
+        "nova_gid"              string      =>  execresult("/usr/bin/id -g nova","noshell");
+
+        "cinder_uid"            string      =>  execresult("/usr/bin/id -u cinder","noshell");
+        "cinder_gid"            string      =>  execresult("/usr/bin/id -g cinder","noshell");
+
+    classes:
+        "nova_user_exist"       expression  =>  userexists("nova");
+        "cinder_user_exist"     expression  =>  userexists("cinder");
+        "nova_uid_ok"           expression  =>  strcmp("$(nova_uid)","500");
+        "cinder_uid_ok"         expression  =>  strcmp("$(cinder_uid)","501");
+
+    methods:
+        nova_user_exist.!nova_uid_ok::
+        "osc_ugfix_nova"            usebundle   =>  oscompute_ugfix("nova","nova-compute","500");
+        cinder_user_exist.!cinder_uid_ok::
+        "osc_ugfix_cinder"          usebundle   =>  oscompute_ugfix("cinder","cinder-volume","501");
+        any::
+        "osc_ugfix_libvirt"     usebundle   =>  oscompute_ugfix_libvirt;
+}
+
+bundle agent oscompute_ugfix_libvirt
+{
+    classes:
+        "user_exist"        expression  =>  userexists("libvirt-qemu");
+        "service_uid_ok"    expression  =>  strcmp("$(service_uid)","510");
+        "service_gid_ok"    expression  =>  strcmp("$(service_gid)","510");
+
+    vars:
+        user_exist::
+            "service_uid"      string  =>  execresult("/usr/bin/id -u libvirt-qemu","noshell");
+            "service_gid"      string  =>  execresult("/usr/bin/id -g libvirt-qemu","noshell");
+    files:
+        user_exist.(!service_uid_ok|!service_gid_ok)::
+            "/etc/passwd"
+            edit_line   =>  libvirtbin_psswd,
+            classes     =>  if_repaired("libvirt_uidgidfix");
+
+            "/etc/group"
+            edit_line   =>  set_colon_field("libvirtd","3","510"),
+            classes     =>  if_repaired("libvirt_uidgidfix");
+
+    commands:
+         user_exist.libvirt_uidgidfix::
+            "/usr/sbin/service libvirt-bin restart";
+}
+
+bundle edit_line libvirtbin_psswd
+{
+    delete_lines: 
+        "libvirt-qemu:x:1.*";
+        "libvirt-dnsmasq:x:1.*";
+    insert_lines:
+        "libvirt-qemu:x:510:510:Libvirt Qemu,,,:/var/lib/libvirt:/bin/false";
+        "libvirt-dnsmasq:x:511:510:Libvirt Dnsmasq,,,:/var/lib/libvirt/dnsmasq:/bin/false";
+}
+
+
+bundle agent oscompute_ugfix(service,services,uidgid)
+{
+    commands:
+            "/usr/sbin/service $(services) stop"
+                classes     =>  upstart_retcodes("$(service)_stop");
+            "/usr/sbin/groupmod -g $(uidgid) $(service)";
+            "/usr/sbin/usermod -u $(uidgid) -g $(uidgid) $(service)";
+}
+
+bundle agent oscompute_setup_cinder
+{
+
+    vars:
+        "shares"        slist   =>  {@(def.cindershares[netapp1]), @(def.cindershares[netapp2])};
+
+        "cinder_dirs"   slist   =>  { "/etc/cinder", "/var/log/cinder","/var/run/cinder","/var/lib/cinder" };
+    files:
+
+        "$(cinder_dirs)/."
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("cinder","cinder"),
+        depth_search    =>  recurse("inf"),
+        file_select     =>  allfiles,
+        classes         =>  if_repaired("cinder_restart");
+        
+        "$(cinder_dirs)"
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("cinder","cinder"),
+        classes         =>  if_repaired("cinder_restart");
+
+        "/var/lock/cinder"
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("cinder","root"),
+        classes         =>  if_repaired("cinder_restart");
+
+        "/etc/sudoers.d/cinder_sudoers_sudo"
+            handle          =>  "oscompute cinder_sudoers_sudo",
+            create          =>  "true",
+            perms           =>  mog("0440","root","root"),
+            comment         =>  "Configuring /etc/sudoers.d/cinder_sudoers_sudo",
+            edit_defaults   =>  empty,
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-installation/sudoers.d/cinder_sudoers_sudo");
+
+        "/etc/cinder/cinder.conf"
+        handle      =>  "oscompute cinder.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","cinder","cinder"),
+        comment     =>  "Configuring /etc/cinder/cinder.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/cinder/cinder.conf"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/etc/cinder/api-paste.ini"
+        handle      =>  "oscompute cinder api-paste.ini",
+        create      =>  "true",
+        perms       =>  mog("0644","cinder","cinder"),
+        comment     =>  "Configuring /etc/cinder/api-paste.ini",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/cinder/api-paste.ini"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/etc/cinder/shares_$(shares).conf"
+        handle      =>  "oscompute cinder shares_$(shares).conf",
+        create      =>  "true",
+        perms       =>  mog("0644","cinder","cinder"),
+        comment     =>  "Configuring /etc/cinder/shares_$(shares).conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/cinder/shares_$(shares).conf"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/mnt/phy/cinder-image-conversion/."
+        handle      => "/mnt/phy/cinder-image-conversion/.",
+        create      => "true",
+        perms       => mog("0700", "cinder", "cinder"),
+        classes     =>  if_repaired("cinder_restart");
+
+        "/mnt/cinder/."
+        handle      => "/mnt/cinder/.",
+        create      => "true",
+        perms       => mog("0755", "cinder", "cinder"),
+        classes     =>  if_repaired("cinder_restart");
+
+    processes:
+        "cinder-volume"
+        comment     =>  "Check if cinder-volume is running",
+        restart_class   =>  "cinder_restart";
+
+    commands:
+        cinder_restart::
+            "/usr/sbin/service cinder-volume restart";
+
+}
+
+bundle agent oscompute_setup_nfsphy
+{
+
+    classes:
+			"phyroot1"		    or	=> { classmatch(".*_blc1") };
+			"phyroot2"		    or	=> { classmatch(".*_blc2") };
+    files:
+        phyroot1::
+        "/etc/fstab"
+        handle      =>  "phyroot1 /etc/fstab",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/fstab",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/fstab.phyroot1"),
+        classes     =>  if_repaired("mountall");
+
+        phyroot2::
+        "/etc/fstab"
+        handle      =>  "phyroot2 /etc/fstab",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/fstab",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/fstab.phyroot2"),
+        classes     =>  if_repaired("mountall");
+
+        any::
+        "/mnt/phy/."
+        create      => "true",
+        perms       => mog("0755", "root", "root"),
+        classes     =>  if_repaired("mountall");
+
+        "/mnt/instances/."
+        create      => "true",
+        perms       => mog("0777", "nova", "nova"),
+        classes     =>  if_repaired("mountall");
+
+
+    commands:
+        ## check if mounted
+        "grep -q phyroot /proc/mounts || echo +mountall"
+            module => "yes",
+            contain => in_shell;
+
+        mountall::
+            "/bin/mount -a";
+
+        any::
+            "grep -q phyroot /proc/mounts && echo +nfsphymounted"
+                module => "true",
+                contain => in_shell;
+}
+
+bundle agent oscompute_setup_varlog
+{
+    commands:
+        nfsphymounted::
+        "if [ ! -L /var/log ]; then rsync -a --delete /var/log/ /mnt/phy/log/; rm -Rf /var/log;ln -s /mnt/phy/log /var/log; /usr/sbin/service rsyslog restart; fi"
+            contain => in_shell;
+}
+
+bundle agent oscompute_setup_libvirt
+{
+    files:
+        "/var/lib/libvirt/qemu"
+        handle          =>  "/var/lib/libvirt/qemu",
+        create          =>  "true",
+        perms           =>  mog("0755","libvirt-qemu","kvm"),
+        comment         =>  "Sets righ permission for qemu dir",
+        depth_search    =>  recurse("inf"),
+        file_select     =>  allfiles,
+        classes         =>  if_repaired("libvirt_restart");
+
+        "/var/cache/libvirt/qemu"
+        handle          =>  "/var/cache/libvirt/qemu",
+        create          =>  "true",
+        perms           =>  mog("0755","libvirt-qemu","kvm"),
+        comment         =>  "Sets righ permission for qemu dir",
+        depth_search    =>  recurse("inf"),
+        file_select     =>  allfiles,
+        classes         =>  if_repaired("libvirt_restart");
+
+        any::
+
+        "/etc/libvirt/qemu.conf"
+        handle      =>  "/etc/libvirt/qemu.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/libvirt/qemu.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/libvirt/qemu.conf"),
+        classes     =>  if_repaired("libvirt_restart");
+
+        "/etc/libvirt/libvirtd.conf"
+        handle      =>  "/etc/libvirt/libvirtd.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/libvirt/libvirtd.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/libvirt/libvirtd.conf"),
+        classes     =>  if_repaired("libvirt_restart");
+
+        "/etc/default/libvirt-bin"
+        handle      =>  "/etc/default/libvirt-bin",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/default/libvirt-bin",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/default/libvirt-bin"),
+        classes     =>  if_repaired("libvirt_restart");
+
+        "/etc/default/qemu-kvm"
+        handle      =>  "/etc/default/qemu-kvm",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/default/qemu-kvm",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/default/qemu-kvm"),
+        classes     =>  if_repaired("libvirt_restart");
+
+    commands:
+        nfsphymounted::
+        "if [ ! -L /var/lib/libvirt ]; then rsync -a --delete /var/lib/libvirt/ /mnt/phy/libvirt/; rm -Rf /var/lib/libvirt; ln -s /mnt/phy/libvirt /var/lib/libvirt; /usr/sbin/service libvirt-bin restart; fi"
+            contain => in_shell;
+        libvirt_restart::
+            "/usr/sbin/service libvirt-bin restart";
+
+}
+
+bundle agent oscompute_setup_nova
+{
+    vars:
+        "nova_dirs"  slist   =>  { "/etc/nova","/var/log/nova","/var/lib/nova" };
+
+    files:
+        "$(nova_dirs)/."
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("nova","nova"),
+        depth_search    =>  recurse("inf"),
+        file_select     =>  allfiles,
+        classes         =>  if_repaired("nova_restart");
+        
+        "$(nova_dirs)"
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("nova","nova"),
+        classes         =>  if_repaired("nova_restart");
+
+        "/var/run/nova"
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("nova","root"),
+        classes         =>  if_repaired("nova_restart");
+
+        "/var/lock/nova"
+        comment         =>  "Fix uid gid of specific directories",
+        perms           =>  og("nova","root"),
+        classes         =>  if_repaired("nova_restart");
+
+        "/etc/sudoers.d/nova_sudoers_sudo"
+        handle      =>  "oscompute nova_sudoers_sudo",
+        create      =>  "true",
+        perms       =>  mog("0440","root","root"),
+        comment     =>  "Configuring /etc/sudoers.d/nova_sudoers_sudo",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/sudoers.d/nova_sudoers_sudo");
+           
+        "/etc/nova/nova.conf"
+        handle      =>  "oscompute nova.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","nova","nova"),
+        comment     =>  "Configuring /etc/nova/nova.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/nova/nova.conf"),
+        classes     =>  if_repaired("nova_restart");
+
+        "/etc/nova/nova-compute.conf"
+        handle      =>  "oscompute nova-compute.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","nova","nova"),
+        comment     =>  "Configuring /etc/nova/nova-compute.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/nova/nova-compute.conf"),
+        classes     =>  if_repaired("nova_restart");
+
+
+        "/etc/nova/api-paste.ini"
+        handle      =>  "oscompute api-paste.ini",
+        create      =>  "true",
+        perms       =>  mog("0644","nova","nova"),
+        comment     =>  "Configuring /etc/nova/api-paste.ini",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/nova/api-paste.ini"),
+        classes     =>  if_repaired("nova_restart");
+
+        "/mnt/phy/openstack/nova/instances/."
+        handle      => "/mnt/phy/openstack/nova/instances/.",
+        create      => "true",
+        perms       => mog("0755", "nova", "nova"),
+        classes     =>  if_repaired("nova_restart");
+
+        "/var/lib/nova/.ssh/."
+        handle      => "/var/lib/nova/.ssh/.",
+        create      => "true",
+        perms       => mog("0700", "nova", "nova");
+
+        #id_rsa/id_rsa.pub
+        "/var/lib/nova/.ssh/id_rsa"
+        copy_from       => remote_cp("$(def.path[debian][openstack_id_rsa])","$(sys.policy_hub)"),
+        perms       => mog("0600","nova","nova");
+
+        "/var/lib/nova/.ssh/authorized_keys"
+        copy_from       => remote_cp("$(def.path[debian][openstack_id_rsa_pub])","$(sys.policy_hub)"),
+        perms       => mog("0600","nova","nova");
+
+        "/var/lib/nova/.ssh/config"
+            handle  	=> "nova_ssh_config",
+            create  	=> "true",
+            perms   	=> mog("0644", "nova", "nova"),
+            edit_line   	=> nova_ssh_conf_str,
+            edit_defaults 	=> empty;
+
+    commands:
+        nova_restart::
+            "/usr/sbin/service nova-compute restart";
+
+}
+
+bundle edit_line nova_ssh_conf_str
+{
+	insert_lines:
+		"Host *";
+		"   StrictHostKeyChecking=no";
+}
+
+bundle agent oscompute_setup_bridges
+{
+
+    commands:
+    #"/sbin/brctl show|grep -v '^bridge name'|awk -F\" \" '{print \"+bridge_\"$1}'"
+    #"/usr/bin/ovs-vsctl show|grep Bridge|sed 's/\"//g'|awk -F\" \" '{print \"+bridge_\"$2}'|sed 's/-/_/'"
+    "/usr/bin/ovs-vsctl show|egrep 'Bridge|Port'|while read line; do br_line=`echo $line|grep Bridge`; if [ \"$br_line\" != \"\" ]; then bridge=`echo $br_line|sed 's/\"//g'|awk -F\" \" '{print $2}'|sed 's/-/_/'`; echo +bridge_$bridge; fi ; port_line=`echo $line|grep Port`; if [ \"$port_line\" != \"\" ]; then port=`echo $port_line|sed 's/\"//g'|awk -F\" \" '{print $2}'|sed 's/-/_/'`; echo +bridge_${bridge}_port_$port; fi; done"
+            module => "true",
+            contain => in_shell;
+
+        !bridge_br_vlan2::
+            "/usr/bin/ovs-vsctl add-br br-vlan2"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan2_port_vlan2::
+            "/usr/bin/ovs-vsctl add-port br-vlan2 vlan2"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan3::
+            "/usr/bin/ovs-vsctl add-br br-vlan3"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan3_port_vlan3::
+            "/usr/bin/ovs-vsctl add-port br-vlan3 vlan3"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan4::
+            "/usr/bin/ovs-vsctl add-br br-vlan4"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan4_port_vlan4::
+            "/usr/bin/ovs-vsctl add-port br-vlan4 vlan4"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan5::
+            "/usr/bin/ovs-vsctl add-br br-vlan5"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan5_port_vlan5::
+            "/usr/bin/ovs-vsctl add-port br-vlan5 vlan5"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan6::
+            "/usr/bin/ovs-vsctl add-br br-vlan6"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan6_port_vlan6::
+            "/usr/bin/ovs-vsctl add-port br-vlan6 vlan6"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan7::
+            "/usr/bin/ovs-vsctl add-br br-vlan7"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan7_port_vlan7::
+            "/usr/bin/ovs-vsctl add-port br-vlan7 vlan7"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan510::
+            "/usr/bin/ovs-vsctl add-br br-vlan510"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan510_port_vlan510::
+            "/usr/bin/ovs-vsctl add-port br-vlan510 vlan510"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan110::
+            "/usr/bin/ovs-vsctl add-br br-vlan110"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan110_port_vlan110::
+            "/usr/bin/ovs-vsctl add-port br-vlan110 vlan110"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan600::
+            "/usr/bin/ovs-vsctl add-br br-vlan600"
+                classes     =>  if_repaired("quantum_restart");
+        !bridge_br_vlan600_port_vlan600::
+            "/usr/bin/ovs-vsctl add-port br-vlan600 vlan600"
+                classes     =>  if_repaired("quantum_restart");
+
+
+        !bridge_br_int::
+            "/usr/bin/ovs-vsctl add-br br-int"
+                classes     =>  if_repaired("quantum_restart");
+}
+
+bundle agent oscompute_setup_quantum
+{
+    files:
+        "/etc/sudoers.d/quantum_sudoers_sudo"
+        handle      =>  "oscompute quantum_sudoers_sudo",
+        create      =>  "true",
+        perms       =>  mog("0440","root","root"),
+        comment     =>  "Configuring /etc/sudoers.d/quantum_sudoers_sudo",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/sudoers.d/quantum_sudoers_sudo"),
+        classes     =>  if_repaired("quantum_restart");
+
+        "/etc/quantum/quantum.conf"
+        handle      =>  "oscompute quantum.conf",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/quantum/quantum.conf",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/quantum.conf"),
+        classes     =>  if_repaired("quantum_restart");
+
+        "/etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"
+        handle      =>  "oscompute ovs_quantum_plugin.ini",
+        create      =>  "true",
+        perms       =>  mog("0644","root","root"),
+        comment     =>  "Configuring /etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini",
+        edit_defaults   =>  empty,
+        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"),
+        classes     =>  if_repaired("quantum_restart");
+
+    commands:
+#        nfsphymounted::
+#        "if [ ! -L /etc/openvswitch ]; then rsync -a --delete /etc/openvswitch/ /mnt/phy/openvswitch/; rm -Rf /etc/openvswitch;ln -s /mnt/phy/openvswitch /etc/openvswitch; /usr/sbin/service openvswitch-switch restart; fi"
+#            contain => in_shell;
+
+        # docasne vypnute kvoli vypadku
+        quantum_restart|!quantum_local_openvswitch_agent_ok::
+            "/bin/echo /usr/sbin/service quantum-plugin-openvswitch-agent restart";
+
+
+}
+
+bundle agent oscompute_vhost_net
+{
+    files:
+        "/etc/modules"
+        perms => m("644"),
+        create => "true",
+        edit_line => append_if_no_lines("vhost_net"),
+        action => if_elapsed("60");
+
+    commands:
+        "cat /proc/modules |grep -q vhost || echo +vhost_net_not_loaded"
+        contain => in_shell,
+        module => "true";
+
+        vhost_net_not_loaded::
+            "/sbin/modprobe vhost_net";
+}
+
+bundle agent oscompute_setup_getinfo
+{
+	vars:
+		"extnet_names"		slist => getindices("def.openstack[extnet]");
+		"localnet_names"	slist => getindices("def.openstack[localnet]");
+
+	commands:
+		# fill slist/string variables from openstack
+        "/root/bin/os_cfengine service_status"
+        module => "true";
+}
+
+
+bundle agent oscompute_process_watchdog
+{
+    processes:
+#        "nova-compute"
+#        comment         =>  "Check if nova-compute is running",
+#        restart_class   =>  "nova_restart";
+#
+#        "cinder-volume"
+#        comment         =>  "Check if cinder-volume is running",
+#        restart_class   =>  "cinder_restart";
+#
+        "numad"
+        comment     => "Check if numad is running",
+        restart_class => "numad_restart";
+
+    commands:
+#        nova_restart::
+#            "/usr/sbin/service nova-compute restart";
+        #cinder_restart::
+        #    "/usr/sbin/service cinder-volume restart";
+
+        numad_restart::
+            "/usr/bin/numad"; # FIXME: pouzit init script
+}
+
+
