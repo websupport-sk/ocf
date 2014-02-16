@@ -24,12 +24,12 @@
 
 bundle common openstack_config
 {
-	vars:
-		"bundleseq"	slist =>  { 
-					"os_main",
-				 };
+    vars:
+        "bundleseq" slist   =>  {
+                                "os_main",
+                                };
 
-		"inputs"	slist =>  { 
-					"$(environments.service)/osmain.cf",
-				 };
+        "inputs"    slist   =>  {
+                                "$(environments.service)/osmain.cf",
+                                };
 }

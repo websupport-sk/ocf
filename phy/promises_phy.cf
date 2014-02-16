@@ -29,21 +29,21 @@ bundle common config
     classes:
         "os_mysqld_installed"   expression =>  isexecutable("/usr/sbin/mysqld");
 
-	vars:
-		"bundleseq"	slist =>  { 
-					"phy_hosts",
-					"phy_main",
-				 };
+    vars:
+        "bundleseq"     slist   =>  {
+                                        "phy_hosts",
+                                        "phy_main",
+                                    };
 
-		"inputs"	slist =>  { 
-					"$(environments.service)/phyhosts.cf",
-					"$(environments.service)/phymain.cf",
-					"$(environments.service)/fai.cf",
-					"$(environments.service)/openstack.cf",
-					"$(environments.service)/osmng.cf",
-					"$(environments.service)/oscompute.cf",
-					"$(environments.service)/osnetwork.cf",
-					"$(environments.service)/logs.cf",
-					"$(environments.service)/monitor.cf",
-				 };
+        "inputs"        slist   =>  {
+                                        "$(environments.service)/phyhosts.cf",
+                                        "$(environments.service)/phymain.cf",
+                                        "$(environments.service)/fai.cf",
+                                        "$(environments.service)/openstack.cf",
+                                        "$(environments.service)/osmng.cf",
+                                        "$(environments.service)/oscompute.cf",
+                                        "$(environments.service)/osnetwork.cf",
+                                        "$(environments.service)/logs.cf",
+                                        "$(environments.service)/monitor.cf",
+                                    };
 }

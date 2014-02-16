@@ -19,82 +19,82 @@
 ### bundle pre quantum l3 agenta
 bundle agent osnetwork_config
 {
-	vars:
-        "os_services"       slist   => { "keystone","nova","glance","cinder","quantum" };
-        "os_bind_address"   string => "$(phy_hosts.phy[osmng][ip])";
+    vars:
+        "os_services"               slist   =>  { "keystone","nova","glance","cinder","quantum" };
+        "os_bind_address"           string  =>  "$(phy_hosts.phy[osmng][ip])";
 
-		"pkgs[debian][list]"	slist	=>	{
+        "pkgs[debian][list]"        slist   =>  {
                                                 "vim",
-                								"mtr",
+                                                "mtr",
                                                 "apg",
                                                 "ntp",
                                                 "dstat",
-							};
-
-        "pkgs[websupport][list]"  slist   => {
-                                                "quantum-l3-agent",
-                                                "quantum-metadata-agent",
-                                                "quantum-dhcp-agent",
-                                                "quantum-plugin-openvswitch",
-                                                "quantum-plugin-openvswitch-agent",
-                                                "openvswitch-switch",
-                                                "openvswitch-datapath-dkms",
                                             };
-    	"pkgs[websupport][repo]"   string  => "deb http://repo.websupport.sk/ubuntu precise main";
-    	"pkgs[websupport][key]"	string  => "http://repo.websupport.sk/key.key";
+
+        "pkgs[websupport][list]"    slist   =>  {
+                                                    "quantum-l3-agent",
+                                                    "quantum-metadata-agent",
+                                                    "quantum-dhcp-agent",
+                                                    "quantum-plugin-openvswitch",
+                                                    "quantum-plugin-openvswitch-agent",
+                                                    "openvswitch-switch",
+                                                    "openvswitch-datapath-dkms",
+                                                };
+        "pkgs[websupport][repo]"    string  =>  "deb http://repo.websupport.sk/ubuntu precise main";
+        "pkgs[websupport][key]"     string  =>  "http://repo.websupport.sk/key.key";
 }
 
 bundle agent osnetwork_setup_quantum_agent
 {
     vars:
-        "networks"          slist => getindices("def.net");
-        "l3_agent_network_id" string => "$(os_cfengine.quantum_l3_agent_net_id)";
+        "networks"              slist   =>  getindices("def.net");
+        "l3_agent_network_id"   string  =>  "$(os_cfengine.quantum_l3_agent_net_id)";
 
     files:
         "/etc/quantum/quantum.conf"
-        handle      =>  "osnetwork quantum.conf",
-        create      =>  "true",
-        perms       =>  mog("0644","root","root"),
-        comment     =>  "Configuring /etc/quantum/quantum.conf",
-        edit_defaults   =>  empty,
-        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/quantum.conf"),
-        classes     =>  if_repaired("quantum_restart");
+            handle          =>  "osnetwork quantum.conf",
+            create          =>  "true",
+            perms           =>  mog("0644","root","root"),
+            comment         =>  "Configuring /etc/quantum/quantum.conf",
+            edit_defaults   =>  empty,
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-installation/quantum/quantum.conf"),
+            classes         =>  if_repaired("quantum_restart");
 
         "/etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"
-        handle      =>  "osnetwork ovs_quantum_plugin.ini",
-        create      =>  "true",
-        perms       =>  mog("0644","root","root"),
-        comment     =>  "Configuring /etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini",
-        edit_defaults   =>  empty,
-        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"),
-        classes     =>  if_repaired("quantum_restart");
+            handle          =>  "osnetwork ovs_quantum_plugin.ini",
+            create          =>  "true",
+            perms           =>  mog("0644","root","root"),
+            comment         =>  "Configuring /etc/quantum/plugins/openvswitch/ovs_quantum_plugin.ini",
+            edit_defaults   =>  empty,
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-installation/quantum/plugins/openvswitch/ovs_quantum_plugin.ini"),
+            classes         =>  if_repaired("quantum_restart");
 
         "/etc/quantum/l3_agent.ini"
-        handle      =>  "osnetwork l3_agent.ini",
-        create      =>  "true",
-        perms       =>  mog("0644","root","root"),
-        comment     =>  "Configuring /etc/quantum/l3_agent.ini",
-        edit_defaults   =>  empty,
-        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/l3_agent.ini"),
-        classes     =>  if_repaired("quantum_restart");
+            handle          =>  "osnetwork l3_agent.ini",
+            create          =>  "true",
+            perms           =>  mog("0644","root","root"),
+            comment         =>  "Configuring /etc/quantum/l3_agent.ini",
+            edit_defaults   =>  empty,
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-installation/quantum/l3_agent.ini"),
+            classes         =>  if_repaired("quantum_restart");
 
         "/etc/quantum/metadata_agent.ini"
-        handle      =>  "osnetwork metadata_agent.ini",
-        create      =>  "true",
-        perms       =>  mog("0644","root","root"),
-        comment     =>  "Configuring /etc/quantum/metadata_agent.ini",
-        edit_defaults   =>  empty,
-        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/metadata_agent.ini"),
-        classes     =>  if_repaired("quantum_restart");
+            handle          =>  "osnetwork metadata_agent.ini",
+            create          =>  "true",
+            perms           =>  mog("0644","root","root"),
+            comment         =>  "Configuring /etc/quantum/metadata_agent.ini",
+            edit_defaults   =>  empty,
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-installation/quantum/metadata_agent.ini"),
+            classes         =>  if_repaired("quantum_restart");
 
         "/etc/quantum/dhcp_agent.ini"
-        handle      =>  "osnetwork dhcp_agent.ini",
-        create      =>  "true",
-        perms       =>  mog("0644","root","root"),
-        comment     =>  "Configuring /etc/quantum/dhcp_agent.ini",
-        edit_defaults   =>  empty,
-        edit_line   =>  expand_template("$(def.path[templates])/openstack-installation/quantum/dhcp_agent.ini"),
-        classes     =>  if_repaired("quantum_restart");
+            handle          =>  "osnetwork dhcp_agent.ini",
+            create          =>  "true",
+            perms           =>  mog("0644","root","root"),
+            comment         =>  "Configuring /etc/quantum/dhcp_agent.ini",
+            edit_defaults   =>  empty,
+            edit_line       =>  expand_template("$(def.path[templates])/openstack-installation/quantum/dhcp_agent.ini"),
+            classes         =>  if_repaired("quantum_restart");
 
     commands:
         quantum_restart|!quantum_local_dhcp_agent_ok::
@@ -105,19 +105,13 @@ bundle agent osnetwork_setup_quantum_agent
             "/bin/echo /usr/sbin/service quantum-plugin-openvswitch-agent restart";
         quantum_restart::
             "/bin/echo /usr/sbin/service quantum-metadata-agent restart";
-
 }
 
 bundle agent osnetwork_main {
     methods:
-	"osnetwork_config"          usebundle =>    osnetwork_config;
-	"osnetwork_installrepo"     usebundle =>    installrepo("osnetwork");
-	"onetwork_installpkgs"     usebundle =>    installpkgs("osnetwork");
-    ## we reuse bundles from osmng.cf/oscompute.cf 
-    #"osnetwork_setup_copy_passwords"    usebundle =>    osmng_setup_copy_passwords;
-    #"osnetwork_setup_generate_passwords"    usebundle =>    osmng_setup_generate_passwords;
-	#"osmng_setup_cfengine" usebundle =>    osmng_setup_cfengine;
-	#"osmng_setup_bashrc"  usebundle =>    osmng_setup_bashrc;
-	"osmng_setup_getinfo"    usebundle =>    osmng_setup_getinfo;
-	"osnetwork_setup_quantum_agent" usebundle =>    osnetwork_setup_quantum_agent;
+        "osnetwork_config"              usebundle   =>  osnetwork_config;
+        "osnetwork_installrepo"         usebundle   =>  installrepo("osnetwork");
+        "onetwork_installpkgs"          usebundle   =>  installpkgs("osnetwork");
+        "osmng_setup_getinfo"           usebundle   =>  osmng_setup_getinfo;
+        "osnetwork_setup_quantum_agent" usebundle   =>  osnetwork_setup_quantum_agent;
 }

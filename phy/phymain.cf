@@ -24,21 +24,18 @@
 
 bundle agent phy_config
 {
-	vars:
-	debian::
-		"pkgs[cfengine][repo]"          string =>       "deb http://cfengine.com/pub/apt squeeze main";
-         "pkgs[cfengine][key]"           string =>       "http://cfengine.com/pub/gpg.key";
-		"pkgs[cfengine][list]"          slist =>        {
-                                                                "cfengine-community",
-                                                                };
-
-
+    vars:
+        "pkgs[cfengine][repo]"  string  =>  "deb http://cfengine.com/pub/apt squeeze main";
+        "pkgs[cfengine][key]"   string  =>  "http://cfengine.com/pub/gpg.key";
+        "pkgs[cfengine][list]"  slist   =>  {
+                                                "cfengine-community",
+                                            };
 }
 
 bundle agent phy_main
 {
     classes:
-       "blades_ioping"   or => { classmatch("bl[0-9]+_blc[0-9]")};
+       "blades_ioping"      or  =>  { classmatch("bl[0-9]+_blc[0-9]")};
 
     vars: 
         !blades_ioping::
@@ -50,77 +47,72 @@ bundle agent phy_main
 #   a nasledne sa budu instalovat stare verzie. Preto je upgrade cfenginu zatial vypnute.
 #   
         phy.!monitor::
-            "phy_zabbix"  usebundle =>    zabbix_agent_conf;
-            "phy_zabbix"  usebundle =>    zabbix_conf_by_pkg("$(zbx_pkglist)");
+            "phy_zabbix"  usebundle =>  zabbix_agent_conf;
+            "phy_zabbix"  usebundle =>  zabbix_conf_by_pkg("$(zbx_pkglist)");
 
-##            "phy_zabbix_agentdconf"  usebundle       =>      zabbix_conf_by_pkg("ioping");
-##	
-#            "phy_config"     	usebundle =>    phy_config;
-#            "phy_installrepo"     usebundle =>    installrepo("phy");
-#            "phy_installpkgs"     usebundle =>    installpkgs("phy");
         fai::
-            "fai" usebundle => fai_main;
+            "fai"       usebundle   =>  fai_main;
         osmng::
-            "osmng" usebundle => osmng_main; 
+            "osmng"     usebundle   =>  osmng_main; 
         logs::
-            "logs" usebundle => logs_main;
+            "logs"      usebundle   =>  logs_main;
         monitor::
-            "monitor"   usebundle   => monitor_main;
+            "monitor"   usebundle   =>  monitor_main;
         bl1_blc1::
-            "oscompute" usebundle => oscompute_main; 
-            "osnetwork" usebundle => osnetwork_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
+            "osnetwork" usebundle   =>  osnetwork_main; 
         bl2_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl3_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl4_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl5_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl6_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl7_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl8_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl9_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl10_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl11_blc1::
-            "oscompute" usebundle => oscompute_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
         bl12_blc1::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl1_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl2_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl3_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl4_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl5_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl6_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl7_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl8_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl9_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl10_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl11_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
         bl12_blc2::
-            "oscompute" usebundle => oscompute_main;
+            "oscompute" usebundle   =>  oscompute_main;
 
         # test infra
         test_compute1::
-            "osmng" usebundle => osmng_main; 
+            "osmng"     usebundle   =>  osmng_main; 
         test_compute2::
-            "oscompute" usebundle => oscompute_main; 
-            "oscompute" usebundle => osnetwork_main; 
+            "oscompute" usebundle   =>  oscompute_main; 
+            "oscompute" usebundle   =>  osnetwork_main; 
 
 }
