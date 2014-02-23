@@ -21,7 +21,7 @@ bundle agent sshdconf
         "$(def.path[sshdconf])"
             handle          =>  "sshd_conf",
             create          =>  "true",
-            perms           =>  "0644", "root", "root"),
+            perms           =>  mog("0644", "root", "root"),
             edit_line       =>  sshdstr,
             edit_defaults   =>  empty,
             classes		    => if_repaired("sshd_configtest");

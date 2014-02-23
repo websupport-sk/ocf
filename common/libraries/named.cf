@@ -53,7 +53,7 @@ bundle agent namedconf
             perms           =>  mog("0644", "root", "root"),
             edit_defaults   =>  empty,
             edit_line       =>  named_conf_zone("$(networks)"),
-            classes         =>  "restart_named");
+            classes         =>  if_repaired("restart_named");
 
         "$(def.path[debian][namedroot])/db.$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf"
             handle          =>  "db_$(namedconf.reverse_ip_net_$(networks)[3]).$(namedconf.reverse_ip_net_$(networks)[2]).$(namedconf.reverse_ip_net_$(networks)[1]).in-addr.arpa.conf",
