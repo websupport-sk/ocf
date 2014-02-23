@@ -76,9 +76,6 @@ bundle agent fai_config
                                                 };
         "pkgs[cfengine][repo]"                  string  =>  "deb http://cfengine.com/pub/apt precise main";
         "pkgs[cfengine][key]"                   string  =>  "http://cfengine.com/pub/gpg.key";
-
-        "pkgs[websupport][repo]"                string  => "deb http://repo.websupport.sk/ubuntu precise main";
-        "pkgs[websupport][key]"                 string  => "http://repo.websupport.sk/debian/pub.txt";
 }
 
 bundle agent fai_main
