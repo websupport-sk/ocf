@@ -1,0 +1,6 @@
+# example of new config file for setup-storage
+#
+# <type> <mountpoint> <size>   <fs type> <mount options> <misc options>
+
+disk_config sda disklabel:msdos bootable:1 
+primary	/      100%      xfs  rw,noatime

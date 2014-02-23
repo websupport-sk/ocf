@@ -1,0 +1,23 @@
+disk_config 	sda disklabel:msdos 
+primary -	1-255	-		-
+primary -	2048	-		-
+primary -       -100%	-		-
+ 
+disk_config 	sdb disklabel:msdos 
+primary -	1-255	-		-
+primary -	2048	-		-
+primary -       -100%	-		-
+
+disk_config 	sdc disklabel:msdos 
+primary -	1-255	-		-
+primary -	2048	-		-
+primary -       -100%	-		-
+ 
+disk_config raid 
+raid1 	/boot 	sda1,sdb1,sdc1 	ext3	rw	mdcreateopts="-e 0.90"
+raid1 	swap	sda2,sdb2,sdc2	swap 	sw	
+raid5 	- 	sda3,sdb3,sdc3 	-	-	
+
+disk_config lvm
+vg  vg00	md2
+vg00-root	/			32768 	ext4    rw,noatime,errors=remount-ro createopts="-E lazy_itable_init=1 -E lazy_journal_init=1"

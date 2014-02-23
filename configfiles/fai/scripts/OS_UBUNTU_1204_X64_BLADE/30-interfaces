@@ -1,0 +1,12 @@
+#!/bin/bash
+error=0; trap 'error=$(($?>$error?$?:$error))' ERR # save maximum error code
+
+nums=( ${HOSTNAME//[a-z\-]/ } )
+if [ "${nums[1]}" == 2 ]; then
+	IPADDR="10.1.7.$((30 + nums[0]))"
+elif [ "${nums[0]}" == 1 ]; then
+	IPADDR="10.1.7.$((10 + nums[0]))"
+fi
+sed -i "s/IPADDRESS/$IPADDR/g" $target/etc/network/interfaces
+
+exit $error
