@@ -126,5 +126,5 @@ bundle edit_line dhcpconfphy
 bundle edit_line dhcpconfdefault
 {
 	insert_lines:
-        "INTERFACES=\"eth1\"";
+        "INTERFACES=\"vlan$(def.net[dc1inst][vlanid])\"";
 }
