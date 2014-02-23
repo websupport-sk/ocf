@@ -82,26 +82,6 @@ bundle agent fai_main
 {
     vars:
         "host"              slist       =>  getindices("phy_hosts.phy");
-    classes:
-        "salt_noconfig"     expression  =>  "any";
-
-    files:
-        "/etc/salt-ws.conf"
-            handle          =>      "salt-ws.conf.fai",
-            create          =>      "true",
-            perms           =>      mog("0700","root","root"),
-            comment         =>      "Configuring salt-ws",
-            edit_defaults   =>      empty,
-            edit_template   =>      "$(def.path[templates])/salt/salt-ws.conf.fai";
-
-        "/root/bin/."
-            handle          =>      "Backup utils on fai",
-            create          =>      "true",
-            perms           =>      mog("0700","root","root"),
-            comment         =>      "Copying backuptools to /root/bin",
-            copy_from       =>      no_backup_dcp("$(def.path[templates])/backuptools"),
-            depth_search    =>      recurse("inf"),
-            file_select     =>      all;
 
     methods:
         fai::
