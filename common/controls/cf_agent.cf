@@ -29,7 +29,7 @@ body agent control
 
  # Environment variables based on Distro
 
-  any.!(webadmin|fai)::
+  any.!(webadmin|fai|test_fai)::
   environment => {
                   "DEBIAN_FRONTEND=noninteractive",
 #                  "APT_LISTBUGS_FRONTEND=none",
@@ -38,7 +38,7 @@ body agent control
                   "LANG=en_US.UTF-8",
                   "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin",
                  };
-  webadmin|fai::
+  webadmin|fai|test_fai::
   environment => {
                   "DEBIAN_FRONTEND=noninteractive",
 #                  "APT_LISTBUGS_FRONTEND=none",

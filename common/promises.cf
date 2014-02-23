@@ -85,7 +85,7 @@ bundle common environments
     classes:
         "commonv1"  or  =>  { classmatch("any") };
         "test_is"   or  =>  { classmatch("test_fai"), classmatch("test_compute1"), classmatch("test_compute2") };
-        "phy"       or  =>  { classmatch("fai") };
+        "phy"       or  =>  { classmatch("fai"), classmatch("test_fai") };
         "openstack" or  =>  { classmatch("openstack.*")};
     vars:
         phy::

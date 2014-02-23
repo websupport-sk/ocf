@@ -45,7 +45,7 @@ bundle agent generichost
     methods:
             "genericsetup"  usebundle   =>  generichost_config;
             "aptnocache"    usebundle   =>  aptnocache;
-            !fai::
+            !fai.!test_fai::
                 "aptproxy"      usebundle   =>  aptproxy;
                 "resolvconf"    usebundle   =>  resolvconf;
             any::
