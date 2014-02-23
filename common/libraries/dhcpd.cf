@@ -56,6 +56,16 @@ bundle agent dhcpdconf
                 perms           =>  mog("0644","dhcpd","dhcpd"),
                 classes         =>  if_repaired("dhcpd_reload");
 
+            "/etc/default/isc-dhcp-server"
+                handle          =>  "dhcpd_etc_default_isc_dhcp_server",
+                comment         =>  "Generating /etc/default/isc-dhcp-server",
+                create          =>  "true",
+                edit_defaults   =>  empty,
+                edit_line       =>  dhcpconfdefault,
+                perms           =>  mog("0644","dhcpd","dhcpd"),
+                classes         =>  if_repaired("dhcpd_reload");
+
+
     commands:
         dhcpd_reload::
             "$(def.path[dhcpd]) -t"
@@ -110,4 +120,11 @@ bundle edit_line dhcpconfphy
 		"host $(phyhost) { hardware ethernet $(phy_hosts.phy[$(phyhost)][mac]); fixed-address $(phy_hosts.phy[$(phyhost)][ip]); option host-name \"$(phyhost)\";}"
             ifvarclass => canonify("$(phy_hosts.phy[$(phyhost)][ip])_exists");
 		"}";
+}
+
+
+bundle edit_line dhcpconfdefault
+{
+	insert_lines:
+        "INTERFACES=\"eth0\"";
 }
