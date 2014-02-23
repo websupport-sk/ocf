@@ -83,9 +83,11 @@ body common control
 bundle common environments
 {
     classes:
+        # this class set bash PS with prefix (testing)
+        "test_is"   or  =>  { classmatch("fai"), classmatch("test_compute1"), classmatch("test_compute2") };
+
         "commonv1"  or  =>  { classmatch("any") };
-        "test_is"   or  =>  { classmatch("test_fai"), classmatch("test_compute1"), classmatch("test_compute2") };
-        "phy"       or  =>  { classmatch("fai"), classmatch("test_fai") };
+        "phy"       or  =>  { classmatch("fai") };
         "openstack" or  =>  { classmatch("openstack.*")};
     vars:
         phy::

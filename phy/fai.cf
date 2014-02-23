@@ -104,7 +104,7 @@ bundle agent fai_main
             file_select     =>      all;
 
     methods:
-        fai|test_fai::
+        fai::
             "fai_config"                usebundle   =>  fai_config;
             "fai_installrepo"           usebundle   =>  installrepo("fai");
             # we have to install fai pkgs by one, because then classes will be set per one pkg
@@ -118,15 +118,15 @@ bundle agent fai_main
             "fai_pxehost"               usebundle   =>  fai_pxehost("$(host)");
             "fai_tftpd"                 usebundle   =>  fai_tftpd;
             "fai_nfsroot"               usebundle   =>  fai_nfsroot;
-        (fai|test_fai).fai_server_wasinstalled::
+        fai.fai_server_wasinstalled::
             "fai_nfsroot_init"          usebundle   =>  fai_nfsroot_init;
-        (fai|test_fai).any::
+        fai.any::
             "fai_tarballs"              usebundle   =>  fai_tarballs;
             "fai_installinitrd"         usebundle   =>  fai_installinitrd;
             "fai_srvconfig"             usebundle   =>  fai_srvconfig;
             "fai_os_passwords"          usebundle   =>  osmng_setup_really_generate_passwords;
             "fai_acng"                  usebundle   =>  acng;
-        fai|test_fai::
+        fai::
             "fai_locale"                usebundle   =>  locale;
         fai.37_9_168_59::
             "fai_postfix"               usebundle   =>  fai_postfix;
