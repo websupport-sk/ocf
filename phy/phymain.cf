@@ -45,11 +45,6 @@ bundle agent phy_main
     methods:
 # FIXME: ked spustime install baliku pred installrepo v oscompute/osnetwork tak sa nam nacachuje povodny zoznam balikov
 #   a nasledne sa budu instalovat stare verzie. Preto je upgrade cfenginu zatial vypnute.
-#   
-        phy.!monitor::
-            "phy_zabbix"  usebundle =>  zabbix_agent_conf;
-            "phy_zabbix"  usebundle =>  zabbix_conf_by_pkg("$(zbx_pkglist)");
-
         fai::
             "fai"       usebundle   =>  fai_main;
         osmng::

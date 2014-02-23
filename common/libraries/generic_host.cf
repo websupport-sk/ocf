@@ -50,7 +50,6 @@ bundle agent generichost
                 "resolvconf"    usebundle   =>  resolvconf;
             any::
             "aptpin"        usebundle   =>  aptpin;
-            "hostsconf"     usebundle   =>  hostsconf;
             "package"       usebundle   =>  installpkgs("generichost");
             "cron"          usebundle   =>  generichost_cron;
             "sysctl_conf"   usebundle   =>  generichost_sysctl;

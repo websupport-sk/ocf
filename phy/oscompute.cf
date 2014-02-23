@@ -70,17 +70,14 @@ bundle agent oscompute_main {
     # generic stuff
     "oscompute_config"                  usebundle   =>  oscompute_config;
     "oscompute_installrepo"             usebundle   =>  installrepo("oscompute");
-    "oscompute_installkernel"           usebundle   =>  openstack_installkernel;
     "oscompute_installpkgs"             usebundle   =>  installpkgs("oscompute");
     "oscompute_updatepkgs"              usebundle   =>  updatepkgs("oscompute");
-    "oscompute_hostsconf"               usebundle   =>  hostsconf;
     "oscompute_ntp"                     usebundle   =>  ntp;
     "oscompute_locale"                  usebundle   =>  locale;
     "oscompute_timezone"                usebundle   =>  timezone;
     "oscompute_disable_gso_on_ethX"     usebundle   =>  openstack_disable_gso_on_ethX;
     "oscompute_postfixconf"             usebundle   =>  postfixconf;
     "oscompute_syslogconf"              usebundle   =>  syslogconf;
-    "oscompute_ssh_conf"                usebundle   =>  ssh_conf;
     # openstack compute uff
     "oscompute_vhost_net"               usebundle   =>  oscompute_vhost_net;
     "oscompute_openvswitch_module"      usebundle   =>  openstack_openvswitch_module;
@@ -99,21 +96,6 @@ bundle agent oscompute_main {
     "oscompute_setup_cinder"            usebundle   =>  oscompute_setup_cinder;
     "oscompute_setup_quantum"           usebundle   =>  oscompute_setup_quantum;
     "oscompute_process_watchdog"        usebundle   =>  oscompute_process_watchdog;
-    #scaledo stuff
-    "oscompute_route_to_api"            usebundle   =>  oscompute_route_to_api;
-    "oscompute_scaledorpc"              usebundle   =>  scaledo_rpc("oscompute");
-}
-
-bundle agent oscompute_route_to_api
-{
-    commands:
-        "/sbin/ip ro|grep -q '^37.9.169.100 via 10.1.12.2' || echo +no_route_to_api"
-            module => "yes",
-            contain => in_shell;
-
-        no_route_to_api::
-            "/sbin/ip ro add 37.9.169.100 via 10.1.12.2";
-        
 }
 
 bundle agent oscompute_uidgidfix
@@ -198,7 +180,7 @@ bundle agent oscompute_setup_cinder
             comment         =>  "Fix uid gid of specific directories",
             perms           =>  og("cinder","cinder"),
             depth_search    =>  recurse("inf"),
-            file_select     =>  allfiles,
+            file_select     =>  all,
             classes         =>  if_repaired("cinder_restart");
         
         "$(cinder_dirs)"
@@ -340,7 +322,7 @@ bundle agent oscompute_setup_libvirt
             perms           =>  mog("0755","libvirt-qemu","kvm"),
             comment         =>  "Sets righ permission for qemu dir",
             depth_search    =>  recurse("inf"),
-            file_select     =>  allfiles,
+            file_select     =>  all,
             classes         =>  if_repaired("libvirt_restart");
 
         "/var/cache/libvirt/qemu"
@@ -349,7 +331,7 @@ bundle agent oscompute_setup_libvirt
             perms           =>  mog("0755","libvirt-qemu","kvm"),
             comment         =>  "Sets righ permission for qemu dir",
             depth_search    =>  recurse("inf"),
-            file_select     =>  allfiles,
+            file_select     =>  all,
             classes         =>  if_repaired("libvirt_restart");
 
         "/etc/libvirt/qemu.conf"
@@ -407,7 +389,7 @@ bundle agent oscompute_setup_nova
             comment         =>  "Fix uid gid of specific directories",
             perms           =>  og("nova","nova"),
             depth_search    =>  recurse("inf"),
-            file_select     =>  allfiles,
+            file_select     =>  all,
             classes         =>  if_repaired("nova_restart");
         
         "$(nova_dirs)"

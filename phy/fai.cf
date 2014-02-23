@@ -115,13 +115,11 @@ bundle agent fai_main
             "fai_installpkgs"           usebundle   =>  installpkgs("fai");
             "timezone"                  usebundle   =>  timezone;
             "fai_dhcpdconf"             usebundle   =>  dhcpdconf;
-            "fai_hostsconf"             usebundle   =>  hostsconf;
             "fai_namedconf"             usebundle   =>  namedconf;
             "fai_sshdconf"              usebundle   =>  sshdconf;
             "fai_syslogconf"            usebundle   =>  syslogconf;
             "fai_pxehost"               usebundle   =>  fai_pxehost("$(host)");
             "fai_tftpd"                 usebundle   =>  fai_tftpd;
-            "fai_ssh_conf"              usebundle   =>  ssh_conf;
             "fai_nfsroot"               usebundle   =>  fai_nfsroot;
         fai.fai_server_wasinstalled::
             "fai_nfsroot_init"          usebundle   =>  fai_nfsroot_init;

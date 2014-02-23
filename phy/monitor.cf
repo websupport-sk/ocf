@@ -44,6 +44,5 @@ bundle agent monitor_main
         "monitor_installrepo"   usebundle   =>  installrepo("monitor");
         "monitor_installpkgs"   usebundle   =>  installpkgs("monitor");
         "monitor_netint"        usebundle   =>  fai_netinterfaces("monitor");
-        "monitor_postfix"       usebundle   =>  postfixconf_satellite;
         "monitor_timezone"      usebundle   =>  timezone;
 }

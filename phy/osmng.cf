@@ -708,15 +708,12 @@ bundle agent osmng_main {
     methods:
         "osmng_config"                          usebundle   =>  osmng_config;
         "osmng_installrepo"                     usebundle   =>  installrepo("osmng");
-        "osmng_installkernel"                   usebundle   =>  openstack_installkernel;
         "osmng_installpkgs"                     usebundle   =>  installpkgs("osmng");
         "osmng_interfaces"                      usebundle   =>  openstack_interfaces_osmng;
-        "osmng_hostsconf"                       usebundle   =>  hostsconf;
         "osmng_ntp"                             usebundle   =>  ntp;
         "osmng_locale"                          usebundle   =>  locale;
         "osmng_timezone"                        usebundle   =>  timezone;
         "osmng_syslogconf"                      usebundle   =>  syslogconf;
-        "osmng_ssh_conf"                        usebundle   =>  ssh_conf;
         "osmng_postfixconf"                     usebundle   =>  postfixconf;
         "osmng_setup_copy_passwords"            usebundle   =>  osmng_setup_copy_passwords;
         "osmng_setup_generate_passwords"        usebundle   =>  osmng_setup_generate_passwords;
