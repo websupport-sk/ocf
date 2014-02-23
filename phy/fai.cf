@@ -45,7 +45,6 @@ bundle agent fai_config
         "templates[OS_UBUNTU_1204_X64_BLADE]"   string  =>  "precise";
 
         "pkgs[debian][list]"                    slist   =>  {
-                                                    "vlan",
                                                     "bind9",
                                                     "isc-dhcp-server",
                                                     "mysql-server",
@@ -60,7 +59,7 @@ bundle agent fai_config
                                                     "apt-cacher-ng",
                                                     "dnsutils",
                                                     "heirloom-mailx",
-                                                    "tcpdump",
+                                                    "tcpdump"
                                                 };
 
         "pkgs[fai][list]"                       slist   =>  {
