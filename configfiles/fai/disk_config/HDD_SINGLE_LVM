@@ -1,0 +1,13 @@
+# example of new config file for setup-storage
+#
+# <type> <mountpoint> <size>   <fs type> <mount options> <misc options>
+
+disk_config sda disklabel:msdos
+primary /boot	1-255	ext3	rw,noatime,errors=remount-ro
+primary -       -100%   -       -
+
+disk_config lvm
+vg  vg00	sda2
+vg00-swap	swap			2048   swap   sw
+vg00-root	/			32768 	ext4    rw,noatime,errors=remount-ro
+vg00-data	/data			-90% 	ext4    rw,noatime,errors=remount-ro
