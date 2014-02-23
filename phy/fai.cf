@@ -391,8 +391,12 @@ bundle agent fai_tarballs
     vars:
         "insttemp"                  slist   =>  getindices("fai_config.templates");
     classes:
-        "$(insttemp)_tarball"    expression =>  fileexists("$(fai_config.fai[config])/basefiles/$(insttemp).tar.gz");
+        "basefiles_exists"      expression =>  isdir("$(fai_config.fai[config])/basefiles");
+        "$(insttemp)_tarball"   expression =>  fileexists("$(fai_config.fai[config])/basefiles/$(insttemp).tar.gz");
     commands:
+        "/bin/mkdir -p $(fai_config.fai[config])/basefiles"
+            ifvarclass  =>  "!basefiles_exists";
+
         "/bin/tar -czf $(fai_config.fai[config])/basefiles/$(insttemp).tar.gz /run/$(insttemp)"
             ifvarclass  =>  "!$(insttemp)_tarball";
 }
