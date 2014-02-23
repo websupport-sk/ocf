@@ -218,17 +218,3 @@ bundle agent aptproxy
             edit_line       =>  insert_lines("Acquire::http::Proxy \"http://aptproxy:3142\";"),
             edit_defaults   =>  empty;
 }
-
-bundle agent aptpin
-{
-    files:
-        "$(def.path[aptdir])/preferences.d/websupport"
-            handle          =>  "apt_pin_websupport",
-            comment         =>  "APT should use proxy on FAI server",
-            create          =>  "true",
-            perms           =>  mog("0600", "root", "root"),
-            edit_line       =>  insert_lines("Package: *
-Pin: origin \"repo.websupport.sk\"
-Pin-Priority: 1001"),
-            edit_defaults   =>  empty;
-}
