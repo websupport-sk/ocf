@@ -50,7 +50,7 @@ bundle agent namedconf
             handle          =>  "db_$(networks)_$(def.net[$(networks)][domainsuf])_conf",
             comment         =>  "Generating zone db.$(networks).$(def.net[$(networks)][domainsuf]).conf",
             create          =>  "true",
-            perms           =>  mog"0644", "root", "root"),
+            perms           =>  mog("0644", "root", "root"),
             edit_defaults   =>  empty,
             edit_line       =>  "$(networks)"),
             classes         =>  "restart_named");
