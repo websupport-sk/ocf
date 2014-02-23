@@ -54,7 +54,6 @@ body common control
         # User services from here
         "common/init_msg.cf",
         "common/libraries/generic_host.cf",
-        "common/libraries/cfengine.cf",
         "common/libraries/timezone.cf",
         "common/libraries/locale.cf",
         "common/libraries/install_pkg_repo.cf",
