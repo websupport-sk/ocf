@@ -88,7 +88,7 @@ bundle common environments
         "phy"       or  =>  { classmatch("fai") };
         "openstack" or  =>  { classmatch("openstack.*")};
     vars:
-        phyv1::
+        phy::
             "service"    string    => "phy",policy => "overridable";
 }
 
