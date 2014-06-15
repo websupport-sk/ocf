@@ -1,0 +1,3 @@
+[submodule "ncf"]
+	path = ncf
+	url = https://github.com/Normation/ncf.git
